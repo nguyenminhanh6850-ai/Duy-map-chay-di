@@ -2,7 +2,7 @@
   "name": "Duy Mập Chạy Đi",
   "short_name": "Duy Chạy",
   "description": "Run, Upgrade, Gacha, More",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#F3F8E8",
   "theme_color": "#F3F8E8",
