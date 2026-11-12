@@ -10,7 +10,7 @@
   "icons": [
     {
       "src": "./duymapchaydi.png",
-      "sizes": "2000x2000",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
