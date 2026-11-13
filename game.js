@@ -1415,7 +1415,7 @@
     );
 
     // City: increase bus frequency, but keep each bus separate from scaffold routes.
-    if (cityMode && Math.random() < 0.56) {
+    if (cityMode && Math.random() < 0.35) {
       const h = clamp(height * random(0.34, 0.42), 72, 118);
       const ratio = busSprite.naturalWidth && busSprite.naturalHeight
         ? busSprite.naturalWidth / busSprite.naturalHeight : 1.42;
