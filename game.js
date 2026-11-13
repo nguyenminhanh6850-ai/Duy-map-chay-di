@@ -1461,7 +1461,7 @@
   // V17: giàn giáo ở map City giảm mạnh ~80% (khoảng cách giữa hai cụm giàn giáo dài gấp ~8 lần).
   const CITY_SCAFFOLD_GAP_MULT = 8;
   // V17: bia, thùng, xe buýt xuất hiện nhiều hơn ~40% (khoảng chờ giữa hai vật cản ngắn lại).
-  const CITY_OBSTACLE_RATE = 1.4;
+  const CITY_OBSTACLE_RATE = 0.9;
   function cityGroundGap() {
     // Faster scrolling needs a longer ground segment so the player can fall off a deck,
     // touch down, and still have room to jump onto the next one.
@@ -1499,7 +1499,7 @@
   // =====================================================================
   const BOSS_CFG = {
     name: 'XE TĂNG CHIẾN ĐẤU',
-    maxHp: 120,          // tổng máu Boss
+    maxHp: 250,          // tổng máu Boss
     rocketDmg: 5,        // hòm đạn → tên lửa bay thẳng
     bombDmg: 8,          // hòm bom → bay vòng cung, đau hơn
     lives: 2,            // số tim mặc định (giáp Lv4 / vật phẩm khiên cộng thêm qua spareHits)
