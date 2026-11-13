@@ -112,3 +112,13 @@ Mở `index.html` trong trình duyệt sau khi giải nén toàn bộ thư mục
 - Thành tựu: 11 mốc, nút `NHẬN 💎 X`, lưu ở `duyMapChayDiAchv` (kèm tổng mét chạy, số hộp Gacha, số lần tông xe buýt).
 - Toàn màn hình mobile: `100dvh` + `visualViewport` + Fullscreen API khi bấm CHƠI NGAY (thiết bị cảm ứng).
 - Mục 📰 NEWS ở sảnh, chấm đỏ theo `duyMapChayDiSeenVersion`.
+- 
+## V19 — Đánh Boss Xe Tăng
+- Mini-game "Sắp ra mắt" → chế độ **ĐÁNH BOSS XE TĂNG**. Đủ 3/3 Key → bấm MỞ KHÓA (trừ 3 Key, lưu `duyMapChayDiBossUnlocked`).
+- Các lượt sau: tốn 1 Key hoặc 15 Crystal. Không tính điểm mét; thanh máu Boss kiểu Wither ở cạnh trên.
+- 2 tim (+1 giáp Lv4, +1 khiên), bất tử 1,2 giây sau khi trúng đòn. Kỹ năng nhân vật còn 50% thời gian trong trận Boss.
+- Lụm hòm 🚀💣 để bắn Boss. Chiêu 1: đạn pháo (laser đỏ cảnh báo 0,7s). Chiêu 2: tên lửa chậm (Ninja chém / Sét giật nổ được).
+- Phase 2 (≤50% máu): ra chiêu nhanh hơn 25%, thêm thùng gỗ / rào chắn.
+- Thưởng thắng: 45💎 + (80% 2.000🪙 / 20% 10💎). Thua: rút <50% → 5💎 + 500🪙; rút ≥50% → 10💎 + 700🪙. Không nhân đôi Coin.
+- Gacha: đủ 3 Key chưa dùng mà ra thêm Key → đền bù 15💎.
+- Duy Quân đội dùng tông đỏ như Tô Duy ở giao diện nhân vật.
