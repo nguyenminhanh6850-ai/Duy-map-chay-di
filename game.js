@@ -1501,7 +1501,7 @@
     name: 'XE TĂNG CHIẾN ĐẤU',
     maxHp: 300,          // tổng máu Boss
     rocketDmg: 5,        // hòm đạn → tên lửa bay thẳng
-    bombDmg: 10,          // hòm bom → bay vòng cung, đau hơn
+    bombDmg: 8,          // hòm bom → bay vòng cung, đau hơn
     lives: 2,            // số tim mặc định (giáp Lv4 / vật phẩm khiên cộng thêm qua spareHits)
     invuln: 1.2,         // giây bất tử sau khi trúng đòn
     telegraph: 0.7,      // giây hiện laser đỏ cảnh báo trước khi bắn đạn pháo
@@ -1511,7 +1511,7 @@
     rageRate: 1.25,      // Phase 2: ra chiêu nhanh hơn 25%
     rageAt: 0.5,         // Phase 2 khi máu Boss còn ≤ 50%
     shellSpeed: 900,     // đạn pháo nhanh (px/s)
-    missileSpeed: 400,   // tên lửa hành trình chậm hơn
+    missileSpeed: 700,   // tên lửa hành trình chậm hơn
     scroll: 300,         // tốc độ cuộn nền cố định trong trận Boss
     crystalFee: 15,
     unlockKeys: 3
