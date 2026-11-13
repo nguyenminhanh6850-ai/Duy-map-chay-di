@@ -2234,7 +2234,7 @@
         addObstacle();
         const difficulty = clamp((speed - 300) / 500, 0, 0.48);
         spawnTimer = random(cityMode ? 0.92 : 1.05, cityMode ? 1.42 : 1.62) - difficulty * (cityMode ? 0.45 : 1);
-        if (cityMode) spawnTimer = Math.max(0.6, spawnTimer / CITY_OBSTACLE_RATE);
+        if (cityMode) spawnTimer = Math.max(0.95, spawnTimer / CITY_OBSTACLE_RATE);
       }
 
       // Scroll platforms before checking whether the player is still supported.
