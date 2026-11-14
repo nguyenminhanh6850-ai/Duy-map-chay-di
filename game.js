@@ -1511,7 +1511,7 @@
     rageRate: 1.25,      // Phase 2: ra chiêu nhanh hơn 25%
     rageAt: 0.5,         // Phase 2 khi máu Boss còn ≤ 50%
     shellSpeed: 900,     // đạn pháo nhanh (px/s)
-    missileSpeed: 700,   // tên lửa hành trình chậm hơn
+    missileSpeed: 1200,   // tên lửa hành trình chậm hơn
     scroll: 300,         // tốc độ cuộn nền cố định trong trận Boss
     crystalFee: 15,
     unlockKeys: 3
