@@ -544,7 +544,7 @@
   // ---------- News: bảng tin cập nhật ----------
   const NEWS_POSTS = [
     {
-      version: 'V20.1', title: 'Bảng Xếp Hạng Thế Giới', date: '15/11/2026',
+      version: 'V20', title: 'Bảng Xếp Hạng Thế Giới', date: '15/11/2026',
       items: [
         'Ra mắt <b>Bảng xếp hạng thế giới</b> 🏆 tích hợp Firebase, kèm dàn NPC thử thách.',
         'Tối ưu hiển thị đội hình 3 người cho Skin <b>Tiến Trọng Duy</b>: cả ba luôn chạy cùng nhau từ đầu trận.',
@@ -798,7 +798,7 @@
   // =====================================================================
   const ITEMS = {
     shield: { icon: '🛡️', name: '+1 chống chịu', desc: 'Chịu thêm 1 va chạm trong 1 màn.', price: 2500 },
-    magnet: { icon: '🪙', badge: '×2', name: '×2 Coin', desc: 'Nhân đôi Coin nhận được trong 1 màn.', price: 600 },
+    magnet: { icon: '🪙', name: '×2 Coin', desc: 'Nhân đôi Coin nhận được trong 1 màn.', price: 600 },
     hourglass: { icon: '⌛', name: 'Giảm thời gian hồi chiêu 15%', desc: 'Giảm 15% thời gian hồi chiêu trong 1 màn.', price: 3000 },
     duration: { icon: '🔋', name: 'Tăng 15% thời gian duy trì kỹ năng', desc: 'Kỹ năng kéo dài thêm 15% trong 1 màn.', price: 3600 }
   };
@@ -1095,7 +1095,7 @@
   const SHOP_LINES = {
     greet: ['Mua gì thì mua, đừng làm mất thời gian của ông Duy!', 'Vào đây! Hàng ông Duy toàn loại xịn.', 'Có tiền thì cứ mua, hết hàng là mai quay lại.'],
     buy: ['Hàng đẹp đấy, chạy cho nhanh nhé!', 'Cảm ơn quý khách. Chan pa gật đầu.', 'Giao dịch xong. Đi chơi đi!'],
-    poor: ['Thiếu Coin rồi, đi chạy thêm đi!', 'Ví mỏng quá… chạy kiếm thêm Coin nhé.'],
+    poor: ['Thiếu Coin rồi, đi chạy thêm đi!', 'Ví mỏng quá… chạy kiếm thêm Coin nhé., Chạy thêm đi không đủ.'],
     soldout: ['Hôm nay hết hàng món này, mai quay lại nhé!'],
     soon: ['Hàng này chưa về. Đợi ông Duy nhập đã!']
   };
@@ -1741,7 +1741,7 @@
     );
 
     // City: increase bus frequency, but keep each bus separate from scaffold routes.
-    if (cityMode && Math.random() < 0.35) {
+    if (cityMode && Math.random() < 0.28) {
       const h = clamp(height * random(0.34, 0.42), 72, 118);
       const ratio = busSprite.naturalWidth && busSprite.naturalHeight
         ? busSprite.naturalWidth / busSprite.naturalHeight : 1.42;
@@ -1754,11 +1754,11 @@
 
     const roll = Math.random();
     // Floating cans now also appear in City as independent obstacles.
-    const canChance = cityMode ? 0.30 : overheadChance;
+    const canChance = cityMode ? 0.40 : overheadChance;
     if (roll < canChance) {
       const h = random(45, 62);
       const w = h * random(0.68, 0.84);
-      const lane = Math.random() < 0.5 ? 'low' : 'high';
+      const lane = Math.random() < (cityMode ? 0.65 : 0.5) ? 'low' : 'high';
       const y = lane === 'low'
         ? groundY - player.height - h * random(0.18, 0.35)
         : groundY - player.height - h - random(8, 30);
@@ -1787,7 +1787,7 @@
   // V17: giàn giáo ở map City giảm mạnh ~80% (khoảng cách giữa hai cụm giàn giáo dài gấp ~8 lần).
   const CITY_SCAFFOLD_GAP_MULT = 8;
   // V17: bia, thùng, xe buýt xuất hiện nhiều hơn ~40% (khoảng chờ giữa hai vật cản ngắn lại).
-  const CITY_OBSTACLE_RATE = 0.9;
+  const CITY_OBSTACLE_RATE = 1.3;
   function cityGroundGap() {
     // Faster scrolling needs a longer ground segment so the player can fall off a deck,
     // touch down, and still have room to jump onto the next one.
@@ -1798,8 +1798,8 @@
     if (cityMode) return;
     cityMode = true;
     cityElapsed = 0;
-    // Reset City to the same 0.7x opening pace, then ramp up gradually.
-    speed = 231; // 231 / 330 = 0.7x
+    // Reset City to the same 0.8x opening pace, then ramp up gradually.
+    speed = 265; // 265 / 330 = 0.8x
     // Do not let desert obstacles or their old platforms leak into the City map.
     obstacles = [];
     platforms = [];
@@ -1827,7 +1827,7 @@
     name: 'XE TĂNG CHIẾN ĐẤU',
     maxHp: 300,          // tổng máu Boss
     rocketDmg: 5,        // hòm đạn → tên lửa bay thẳng
-    bombDmg: 8,          // hòm bom → bay vòng cung, đau hơn
+    bombDmg: 10,          // hòm bom → bay vòng cung, đau hơn
     lives: 2,            // số tim mặc định (giáp Lv4 / vật phẩm khiên cộng thêm qua spareHits)
     invuln: 1.2,         // giây bất tử sau khi trúng đòn
     telegraph: 0.7,      // giây hiện laser đỏ cảnh báo trước khi bắn đạn pháo
@@ -1839,7 +1839,7 @@
     shellSpeed: 900,     // V20: đạn pháo laser đỏ (px/s) — Phase 1
     shellSpeedRage: 1000, // V20: đạn pháo ở Phase 2 (máu Boss dưới 50%)
     missileSpeed: 460,   // V20: tên lửa hành trình (px/s) — Phase 1
-    missileSpeedRage: 540, // V20: tên lửa ở Phase 2
+    missileSpeedRage: 500, // V20: tên lửa ở Phase 2
     scroll: 300,         // tốc độ cuộn nền cố định trong trận Boss
     crystalFee: 15,
     unlockKeys: 3
@@ -1850,7 +1850,7 @@
     winCoinChance: 0.8,       // 80% ra 2.000 Coin, 20% ra thêm 10 Crystal
     winBonusCrystal: 10,
     lossLow: { crystal: 5, coin: 500 },    // rút < 50% máu Boss
-    lossHigh: { crystal: 10, coin: 700 }   // rút ≥ 50% máu Boss (đã vào Phase 2)
+    lossHigh: { crystal: 10, coin: 800 }   // rút ≥ 50% máu Boss (đã vào Phase 2)
   };
 
   const bossBar = $('bossBar');
