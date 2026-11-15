@@ -132,3 +132,9 @@ Mở `index.html` trong trình duyệt sau khi giải nén toàn bộ thư mục
 - Boss Xe Tăng khó hơn: `shellSpeed` 900 (Phase 2: 1.000), `missileSpeed` 460 (Phase 2: 540), `bossConflict` 0,5s. Chiêu tên lửa bắn **loạt 2 quả (Phase 1) / 3 quả (Phase 2)** cách nhau 150–180px, độ cao so le thấp → cao → thấp.
 - Phase 2 có thêm **giàn giáo** (rộng 160–190px, cao ~88px) xen thùng gỗ / rào chắn; kèm đòn quét sát đất (1 đạn pháo tầm thấp hoặc loạt 2 tên lửa tầm thấp) buộc nhảy lên giàn giáo, có hòm bom 💣 ở cuối giàn giáo.
 - Thành tựu `a8` cố định: nâng đủ 5 nhân vật bất kỳ lên Lv4. Thêm bài News **V20**. Service worker cache `v20`.
+## V20.1 — Thử Thách (Challenge)
+- Nút **Thử Thách 🎯** ở thanh menu sảnh. Khóa `🔒 1.000m` đến khi kỷ lục `best >= 1000`; bấm khi còn khóa sẽ hiện thông báo điều kiện mở.
+- Mỗi đợt gồm **2 thử thách ngẫu nhiên không trùng loại**, tự làm mới theo chu kỳ **3 ngày** (`Math.floor(Date.now() / 3 ngày)`); popup hiển thị đếm ngược. Lưu ở `localStorage` khóa `duyMapChayDiChallenge`.
+- Chấm đỏ `challengeDot` khi có thử thách hoàn thành nhưng chưa nhận thưởng. Thưởng bằng 💎 Crystal.
+- Pool: Thử thách Duy (3.600đ, 15💎) · Thử thách Trọng “Sét” (4.000đ, 15💎) · Thợ săn tiền vàng (2.000 Coin/màn, 25💎) · Chinh phục đỉnh cao (5.000đ, 20💎) · Đường dài bền bỉ (tích lũy 10.000đ, 20💎) · Trang bị tận răng (đủ 4 vật phẩm, 15💎) · Độc cô cầu bại (chỉ khi `bossUnlocked`: hạ Boss không vật phẩm hỗ trợ, không mất tim, 30💎).
+- Thêm bài News **V20.1**. Service worker cache `v20-1`.
