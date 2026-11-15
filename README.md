@@ -1,4 +1,73 @@
-# Duy mập chạy đi — V8 City Route
+# V1 – Hoàn thiện nền tảng gameplay
+Phát triển prototype thành một phiên bản có cấu trúc rõ ràng hơn.
+Cải thiện chuyển động nhân vật.
+Điều chỉnh cơ chế nhảy và va chạm.
+Bổ sung thêm loại chướng ngại vật.
+Cải thiện giao diện và hiển thị điểm.
+Tối ưu khả năng chơi trên điện thoại.
+Đây là giai đoạn đặt nền móng cho các tính năng mở rộng sau này.
+
+# V2 – Chính thức mang tên Duy mập chạy đi
+Đây là một trong những cột mốc quan trọng nhất của dự án.
+Các thay đổi:
+Đặt tên chính thức: Duy mập chạy đi.
+Thêm hệ thống chọn nhân vật.
+Nhân vật đầu tiên: Duy.
+Nhân vật thứ hai: Trọng "Sét".
+Sử dụng hình ảnh nhân vật riêng thay cho nhân vật mặc định.
+Bổ sung chướng ngại vật:
+Lon bia.
+Xương rồng cao.
+Xương rồng đôi.
+Thùng gỗ.
+Cơ chế nhảy được điều chỉnh lại theo hướng nhảy bình thường, không còn phụ thuộc vào việc giữ nút để tăng độ cao.
+
+# V3 – Hệ thống kỹ năng và bản đồ City
+Bắt đầu đưa các cơ chế riêng biệt vào từng nhân vật.
+Kỹ năng nhân vật:
+Duy – Hành quân: có thể vượt qua chướng ngại vật trong thời gian kỹ năng hoạt động.
+Trọng "Sét" – Sấm sét: tạo hiệu ứng sét phá hủy chướng ngại vật phía trước.
+Kỹ năng được thiết kế để tự kích hoạt theo chu kỳ thời gian.
+Bản đồ City:
+Mở khóa khi đạt 3.000 điểm.
+Thay đổi môi trường từ khu vực ban đầu sang thành phố.
+Bổ sung xe buýt và giàn giáo.
+Bắt đầu phát triển cơ chế đứng trên các bề mặt cao.
+Sửa lỗi:
+Khắc phục lỗi thiếu phần tử HUD kỹ năng khiến JavaScript gặp lỗi khi cập nhật giao diện.
+# V4 – Cải thiện bản đồ và khả năng chơi
+Tập trung vào việc làm cho City hoạt động ổn định hơn.
+Điều chỉnh cách sinh chướng ngại vật.
+Cải thiện sự tương tác giữa nhân vật và địa hình.
+Điều chỉnh các vật thể trong City.
+Tiếp tục sửa các lỗi liên quan đến nền, va chạm và hiển thị.
+# V5 – Tinh chỉnh môi trường City
+Giảm các chi tiết giàn giáo trang trí gây rối mắt ở nền.
+Tập trung giàn giáo vào các khu vực có chức năng gameplay.
+Tiếp tục cân bằng chướng ngại vật và bố cục thành phố.
+# V6 – Cải thiện khả năng chơi trên địa hình
+Điều chỉnh cơ chế đứng và di chuyển trên các bề mặt giàn giáo.
+Cải thiện khả năng tương tác giữa nhân vật, xe buýt và nền tảng.
+Tiếp tục xử lý những tình huống va chạm không hợp lý.
+IV. PHÁT TRIỂN HỆ THỐNG CITY
+# V7 City Route & World Synchronization
+Một bước tiến đáng kể về thiết kế bản đồ.
+Đồng bộ môi trường:
+Sử dụng hệ thống worldDistance để đồng bộ tốc độ di chuyển của cảnh nền với gameplay.
+Cải thiện cảm giác chuyển động của thành phố.
+Địa hình:
+Bổ sung bố cục giàn giáo theo cặp.
+Phát triển các đoạn đường có thể nhảy và đứng trên giàn giáo.
+Bổ sung thử thách bức tường.
+Cải thiện cách bố trí chướng ngại vật.
+Xe buýt:
+Tăng tần suất xuất hiện lên khoảng 38%.
+Điều chỉnh hình ảnh và vùng va chạm.
+Cho phép nhân vật đáp xuống nóc xe buýt.
+Cân bằng tốc độ:
+Khi vào City tại mốc 3.000 điểm, tốc độ được đưa về mức khởi đầu thấp hơn.
+Sau đó tăng dần theo thời gian.
+# V8 City Route
 
 - Giảm tần suất cụm dàn giáo; khoảng chạy mặt đất giữa các cụm dài hơn.
 - Cụm vượt tường có ba dàn giáo: hai dàn giáo thấp gần ngang nhau và một dàn giáo cao hơn ở phía trên.
