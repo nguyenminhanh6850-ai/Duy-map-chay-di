@@ -207,3 +207,11 @@ Mở `index.html` trong trình duyệt sau khi giải nén toàn bộ thư mục
 - Chấm đỏ `challengeDot` khi có thử thách hoàn thành nhưng chưa nhận thưởng. Thưởng bằng 💎 Crystal.
 - Pool: Thử thách Duy (3.600đ, 15💎) · Thử thách Trọng “Sét” (4.000đ, 15💎) · Thợ săn tiền vàng (2.000 Coin/màn, 25💎) · Chinh phục đỉnh cao (5.000đ, 20💎) · Đường dài bền bỉ (tích lũy 10.000đ, 20💎) · Trang bị tận răng (đủ 4 vật phẩm, 15💎) · Độc cô cầu bại (chỉ khi `bossUnlocked`: hạ Boss không vật phẩm hỗ trợ, không mất tim, 30💎).
 - Thêm bài News **V20.1**. Service worker cache `v20-1`.
+## V21 — Giá Tiến & nhân vật Gacha Triều
+- Giảm giá mở khóa nhân vật Tiến tại Shop Đặc Biệt từ 15.000 xuống 10.000 Coin.
+- Thêm nhân vật Gacha thứ ba: **Triều** (`assets/trieu.png`), sở hữu vĩnh viễn bằng `owned.trieu`; trùng nhân vật hoàn 10 Crystal.
+- Điều chỉnh nhóm nhân vật Gacha 15% thành ba phần bằng nhau: Tô Duy 5%, Duy Quân đội 5%, Triều 5%. Tỷ lệ Key Mini-game giữ 5%.
+- Thẻ Triều dùng tông đỏ, có kỹ năng tự kích hoạt **VUA LÝ THUYẾT**.
+- Nâng cấp Triều: Lv2 400 Coin (hồi chiêu 36→31 giây), Lv3 1.000 Coin (duy trì 14→17 giây), Lv4 1.600 Coin (thêm 1 lần chống chịu).
+- Nội tại theo điểm trong lượt: từ 2.000 điểm giảm hồi 1 giây; 3.000 điểm tăng duy trì 1 giây; 4.000 điểm giảm hồi thêm 2 giây; 5.000 điểm tăng duy trì thêm 1 giây. Hiệu ứng vật phẩm và giảm 50% thời gian trong Boss được áp dụng sau các chỉ số nội tại.
+- Mỗi mốc nội tại có thông báo; chữ VUA LÝ THUYẾT bay về phía trước, lớn dần và đổi màu theo cấp. Khi kỹ năng hoạt động, Triều miễn nhiễm va chạm và hất văng chướng ngại; tên lửa Boss cũng bị luồng chữ đánh bật.
