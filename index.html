@@ -337,5 +337,58 @@
     });
   }
 </script>
+  <!-- NÚT & BẢNG SAO LƯU DỮ LIỆU -->
+<button onclick="openSaveModal()" style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#2e7d32;color:#fff;border:none;border-radius:20px;padding:8px 14px;font-weight:bold;font-size:13px;box-shadow:0 3px 8px rgba(0,0,0,0.3);cursor:pointer;">
+  💾 Sao lưu
+</button>
+
+<div id="saveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#F3F8E8;border-radius:16px;padding:20px;max-width:360px;width:100%;text-align:center;font-family:sans-serif;box-shadow:0 5px 15px rgba(0,0,0,0.4);">
+    <h3 style="margin:0 0 10px;color:#1b5e20;">💾 Quản lý dữ liệu game</h3>
+    <p style="font-size:12px;color:#444;margin:0 0 12px;">Sao chép mã bên dưới để lưu hoặc chuyển dữ liệu từ Zalo sang App.</p>
+    <textarea id="saveCodeBox" rows="4" placeholder="Mã dữ liệu của bạn sẽ hiện ở đây..." style="width:100%;box-sizing:border-box;border-radius:8px;border:1px solid #999;padding:8px;font-size:12px;margin-bottom:12px;"></textarea>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;">
+      <button onclick="copySaveData()" style="flex:1;background:#1976d2;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">📤 Sao chép mã</button>
+      <button onclick="loadSaveData()" style="flex:1;background:#e65100;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">📥 Nhập mã</button>
+    </div>
+    <button onclick="document.getElementById('saveModal').style.display='none'" style="background:#757575;color:#fff;border:none;padding:6px 16px;border-radius:8px;font-size:12px;cursor:pointer;">Đóng</button>
+  </div>
+</div>
+
+<script>
+function openSaveModal() {
+  document.getElementById('saveModal').style.display = 'flex';
+  try {
+    document.getElementById('saveCodeBox').value = btoa(encodeURIComponent(JSON.stringify(localStorage)));
+  } catch (e) {}
+}
+
+function copySaveData() {
+  const box = document.getElementById('saveCodeBox');
+  box.select();
+  box.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(box.value).then(() => {
+    alert('✅ Đã sao chép mã! Hãy lưu lại hoặc dán sang App.');
+  }).catch(() => {
+    document.execCommand('copy');
+    alert('✅ Đã sao chép mã!');
+  });
+}
+
+function loadSaveData() {
+  const code = document.getElementById('saveCodeBox').value.trim();
+  if (!code) return alert('⚠️ Vui lòng dán mã dữ liệu vào ô trống trước!');
+  try {
+    const data = JSON.parse(decodeURIComponent(atob(code)));
+    localStorage.clear();
+    for (let k in data) localStorage.setItem(k, data[k]);
+    alert('🎉 Khôi phục dữ liệu thành công! Game sẽ tự tải lại.');
+    location.reload();
+  } catch (e) {
+    alert('❌ Mã không hợp lệ hoặc bị thiếu ký tự!');
+  }
+}
+</script>
+  
 </body>
 </html>
