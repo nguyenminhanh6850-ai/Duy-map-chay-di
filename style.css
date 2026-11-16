@@ -852,3 +852,70 @@ button:focus-visible { outline: 3px solid var(--lime); outline-offset: 3px; }
 .char-card.is-gacha-trieu { border-color: rgba(239, 55, 65, .78); background: linear-gradient(155deg, rgba(112, 20, 28, .28), rgba(35, 20, 25, .96)); box-shadow: inset 0 0 0 1px rgba(255, 80, 80, .12), 0 8px 24px rgba(180, 25, 35, .12); }
 .char-card.is-gacha-trieu .card-name { color: #ff7777; }
 .char-card.is-gacha-trieu .card-lv { background: linear-gradient(135deg, #b51f2d, #ef554b); }
+/* =========================================================
+   CO GIÃN & CUỘN BẢNG XẾP HẠNG (TOÀN CẦU & GIẢI ĐẤU TUẦN)
+   ========================================================= */
+
+/* 1. Khung chứa tab bên trong modal tự co giãn theo chiều cao màn hình */
+.modal-panel .lg-pane:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 2. Giữ cố định phần nhập tên, đồng hồ, nút nhận thưởng và bảng cơ cấu thưởng */
+.lg-pane .lb-name-row,
+.lg-pane .lg-lock,
+.lg-pane .challenge-timer,
+.lg-pane .lg-claim,
+.lg-pane .modal-note,
+.lg-pane .lg-rewards {
+  flex-shrink: 0;
+}
+
+/* 3. Vùng danh sách người chơi tự co lại và cuộn khi dài */
+.lg-pane .tab-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 4. Khi xoay ngang điện thoại (màn hình thấp): cho phép cuộn cả tab Giải Đấu để không bị chật */
+@media (max-height: 520px) {
+  #lgLeaguePane:not([hidden]) {
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  #lgLeaguePane .tab-body {
+    flex: none;
+    max-height: 45vh;
+  }
+}
+
+/* 5. Làm đẹp thanh cuộn hợp tông màu game */
+.lg-pane .tab-body::-webkit-scrollbar,
+#lgLeaguePane::-webkit-scrollbar {
+  width: 6px;
+}
+.lg-pane .tab-body::-webkit-scrollbar-track,
+#lgLeaguePane::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 999px;
+}
+.lg-pane .tab-body::-webkit-scrollbar-thumb,
+#lgLeaguePane::-webkit-scrollbar-thumb {
+  background: rgba(216, 245, 139, 0.4);
+  border-radius: 999px;
+}
+.lg-pane .tab-body::-webkit-scrollbar-thumb:hover,
+#lgLeaguePane::-webkit-scrollbar-thumb:hover {
+  background: var(--lime);
+}
+
