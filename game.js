@@ -1253,7 +1253,7 @@
   const SHOP_LINES = {
     greet: ['Mua gì thì mua, đừng làm mất thời gian của ông Duy!', 'Vào đây! Hàng ông Duy toàn loại xịn.', 'Có tiền thì cứ mua, hết hàng là mai quay lại.'],
     buy: ['Hàng đẹp đấy, chạy cho nhanh nhé!', 'Cảm ơn quý khách. Chan pa gật đầu.', 'Giao dịch xong. Đi chơi đi!'],
-    poor: ['Thiếu Coin rồi, đi chạy thêm đi!', 'Ví mỏng quá… chạy kiếm thêm Coin nhé., Chạy thêm đi không đủ.'],
+    poor: ['Thiếu Coin rồi, đi chạy thêm đi!', 'Ví mỏng quá… chạy kiếm thêm Coin nhé','Đéo đủ coin.'],
     soldout: ['Hôm nay hết hàng món này, mai quay lại nhé!'],
     soon: ['Hàng này chưa về. Đợi ông Duy nhập đã!']
   };
