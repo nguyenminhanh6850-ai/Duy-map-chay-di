@@ -1,12 +1,12 @@
 {
   "name": "Duy Mập Chạy Đi",
-  "short_name": "Duy Chạy",
-  "description": "Run, Upgrade, Gacha, More",
+  "short_name": "Duy Mập",
+  "description": "Run, Upgrade, Gacha, More!",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#F3F8E8",
   "theme_color": "#F3F8E8",
-  "orientation": "portrait",
+  "orientation": "any",
   "icons": [
     {
       "src": "./duymapchaydi.png",
