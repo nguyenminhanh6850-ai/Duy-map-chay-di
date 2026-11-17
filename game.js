@@ -1182,24 +1182,24 @@
       text = `${itemIconText(key)} ${ITEMS[key].name} +1`;
     } else if (roll < 0.8375) {
       rare = true;
-      if (owned.toduy) { crystals += 10; text = '🥷 Tô Duy (đã sở hữu) → hoàn 💎 10'; }
+      if (owned.toduy) { crystals += 25; text = '🥷 Tô Duy (đã sở hữu) → hoàn 💎 25'; }
       else { owned.toduy = true; text = '🥷 NHÂN VẬT MỚI: Tô Duy! Đã mở khóa vĩnh viễn'; }
     } else if (roll < 0.875) {
       rare = true;
-      if (owned.duyquandoi) { crystals += 10; text = '🪖 Duy Quân đội (đã sở hữu) → hoàn 💎 10'; }
+      if (owned.duyquandoi) { crystals += 25; text = '🪖 Duy Quân đội (đã sở hữu) → hoàn 💎 25'; }
       else { owned.duyquandoi = true; text = '🪖 NHÂN VẬT MỚI: Duy Quân đội! Đã mở khóa vĩnh viễn'; }
     } else if (roll < 0.9125) {
       rare = true;
-      if (owned.trieu) { crystals += 10; text = '👑 Triều (đã sở hữu) → hoàn 💎 10'; }
+      if (owned.trieu) { crystals += 25; text = '👑 Triều (đã sở hữu) → hoàn 💎 25'; }
       else { owned.trieu = true; text = '👑 NHÂN VẬT MỚI: Triều! Đã mở khóa vĩnh viễn'; }
     } else if (roll < 0.95) {
       rare = true;
-      if (owned.tan) { crystals += 10; text = '🧹 Tân (đã sở hữu) → hoàn 💎 10'; }
+      if (owned.tan) { crystals += 25; text = '🧹 Tân (đã sở hữu) → hoàn 💎 25'; }
       else { owned.tan = true; text = '🧹 NHÂN VẬT MỚI: Tân! Đã mở khóa vĩnh viễn'; }
     } else {
       rare = true;
       if (miniKeys < 3) { miniKeys++; text = `🔑 Key Mini-game (${miniKeys}/3)`; }
-      else { crystals += 15; text = '🔑 Key Mini-game (đã đủ 3/3) → đền bù 💎 15'; }
+      else { crystals += 15; text = '🔑 Key Mini-game (đã đủ 3/3) → đền bù 💎 50'; }
     }
     return { coin, text, rare };
   }
