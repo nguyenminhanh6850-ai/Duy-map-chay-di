@@ -19,11 +19,11 @@
 
   // Bảng thưởng cuối tuần (đọc từ trên xuống, khớp dòng đầu tiên có rank <= max)
   const REWARD_TIERS = [
-    { max: 1,        label: 'Top 1',   crystal: 50, coin: 5000 },
-    { max: 2,        label: 'Top 2',   crystal: 35, coin: 3500 },
-    { max: 3,        label: 'Top 3',   crystal: 25, coin: 2500 },
-    { max: 10,       label: 'Top 4–10', crystal: 15, coin: 1500 },
-    { max: Infinity, label: 'Top 11+', crystal: 5,  coin: 500 }
+    { max: 1,        label: 'Top 1',   crystal: 200, coin: 5000 },
+    { max: 2,        label: 'Top 2',   crystal: 150, coin: 3500 },
+    { max: 3,        label: 'Top 3',   crystal: 100, coin: 2500 },
+    { max: 10,       label: 'Top 4–10', crystal: 55, coin: 1500 },
+    { max: Infinity, label: 'Top 11+', crystal: 20,  coin: 500 }
   ];
   const rewardForRank = (rank) => REWARD_TIERS.find((t) => rank <= t.max);
 
