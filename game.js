@@ -3062,18 +3062,32 @@
   const BROOM_RANGE = 360;     // tầm bay của mỗi cây chổi (px)
   const BROOM_SPEED = 780;     // tốc độ bay (px/s)
   const BROOM_INTERVAL = 0.36; // nhịp ném (giây)
-  function throwBroom() {
-    brooms.push({ x0: player.x + player.width * 0.8, y: player.y + player.height * 0.5, travel: 0, angle: 0 });
+    let megaBroomThrown = false;
+  function throwBroom(mega = false) {
+    brooms.push({
+      x0: player.x + player.width * 0.8,
+      y: mega ? groundY - player.height * 0.65 : player.y + player.height * 0.5,
+      travel: 0,
+      angle: 0,
+      mega
+    });
+    if (mega) {
+      screenShake = Math.max(screenShake, 0.14);
+      playTone(280, 0.22, 'sawtooth', 0.045);
+    }
   }
   function updateBrooms(dt) {
-    brooms.forEach(b => { b.travel += BROOM_SPEED * dt; b.angle += 17 * dt; });
-    brooms = brooms.filter(b => b.travel < BROOM_RANGE);
+    brooms.forEach(b => {
+      b.travel += (b.mega ? 1050 : BROOM_SPEED) * dt;
+      b.angle += (b.mega ? 12 : 17) * dt;
+    });
+    brooms = brooms.filter(b => b.travel < (b.mega ? width + 120 : BROOM_RANGE));
   }
-  // Có cây chổi nào đang quét qua đoạn [x, x + w] không? (cửa sổ rộng hơn quãng bay mỗi khung hình nên không xuyên qua)
   function broomHits(x, w) {
     return brooms.some(b => {
       const bx = b.x0 + b.travel;
-      return x < bx + 36 && x + w > bx - 36;
+      const hitRadius = b.mega ? 85 : 36;
+      return x < bx + hitRadius && x + w > bx - hitRadius;
     });
   }
   function drawBroom(x, y, angle) {
@@ -3096,13 +3110,21 @@
   }
   function drawBrooms() {
     brooms.forEach(b => {
-      const t = b.travel / BROOM_RANGE;
+      const maxDist = b.mega ? width + 120 : BROOM_RANGE;
+      const t = b.travel / maxDist;
       ctx.save();
-      ctx.globalAlpha = clamp(1 - Math.max(0, t - 0.75) / 0.25, 0, 1);
-      drawBroom(b.x0 + b.travel, b.y - Math.sin(t * Math.PI) * 10, b.angle);
+      ctx.globalAlpha = b.mega ? 1 : clamp(1 - Math.max(0, t - 0.75) / 0.25, 0, 1);
+      ctx.translate(b.x0 + b.travel, b.y - (b.mega ? 0 : Math.sin(t * Math.PI) * 10));
+      if (b.mega) {
+        ctx.scale(2.5, 2.5);
+        ctx.shadowColor = '#ffd34d';
+        ctx.shadowBlur = 16;
+      }
+      drawBroom(0, 0, b.angle);
       ctx.restore();
     });
   }
+  
 
   function activateSkill() {
     skillTriggered = true;
@@ -3134,6 +3156,8 @@
       playTone(740, 0.2, 'triangle', 0.045);
     } else if (selectedCharacter === 'tan') {
       broomTimer = 0;
+            megaBroomThrown = false;
+      
       showToast(`NÉM CHỔI kích hoạt: Tân miễn nhiễm va chạm và liên tục ném chổi hất văng chướng ngại trong ${duration} giây!`);
       burst(player.x + player.width / 2, player.y + player.height * 0.5, 24, false, '#ffcf4d');
       playTone(520, 0.18, 'triangle', 0.04);
@@ -3204,10 +3228,17 @@
         muRatCloneX += speed * dt * 1.75;
         if (muRatCloneX > width + player.width + 30) muRatCloneX = -player.width;
       }
-      if (selectedCharacter === 'tan' && skillActive) {
-        broomTimer -= dt;
-        if (broomTimer <= 0) { throwBroom(); broomTimer = BROOM_INTERVAL; }
-      }
+            if (selectedCharacter === 'tan' && skillActive) {
+        const timeLeft = skillActiveUntil - elapsedRun;
+        if (timeLeft <= 0.4 && !megaBroomThrown) {
+          megaBroomThrown = true;
+          throwBroom(true);
+        } else if (timeLeft > 0.4) {
+          broomTimer -= dt;
+          if (broomTimer <= 0) { throwBroom(false); broomTimer = BROOM_INTERVAL; }
+        }
+            }
+      
       updateBrooms(dt);
       knockedObstacles.forEach(o => { o.x += (o.vx - speed * 0.35) * dt; o.y += o.vy * dt; o.vy += 780 * dt; o.angle += o.spin * dt; o.life -= dt; });
       knockedObstacles = knockedObstacles.filter(o => o.life > 0 && o.y < height + 120);
