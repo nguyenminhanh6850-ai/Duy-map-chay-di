@@ -561,10 +561,19 @@
   document.querySelectorAll('.modal').forEach((modal) => modal.addEventListener('click', (event) => {
     if (event.target.closest('[data-close]')) closeModal();
   }));
-  function showScreen(name) {
+    function showScreen(name) {
+    const isPlaying = name === 'game';
     lobbyScreen.classList.toggle('is-active', name === 'lobby');
-    gameScreen.classList.toggle('is-active', name === 'game');
-  }
+    gameScreen.classList.toggle('is-active', isPlaying);
+
+    // Tìm và ẩn mọi nút có chữ "Sao lưu" khi vào trận, hiện lại khi về sảnh
+    document.querySelectorAll('button, a, div[role="button"]').forEach((el) => {
+      if (el.textContent && el.textContent.trim().includes('Sao lưu')) {
+        el.style.display = isPlaying ? 'none' : '';
+      }
+    });
+    }
+  
   function openCharacterModal() { renderCharacterCards(); openModal(characterModal, openCharactersBtn); }
   function openHelpModal() {
     openModal(helpModal, openHelpBtn);
