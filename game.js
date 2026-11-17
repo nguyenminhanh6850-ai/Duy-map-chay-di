@@ -3152,10 +3152,9 @@
       playTone(200, 0.24, 'sawtooth', 0.05);
     } else if (selectedCharacter === 'trieu') {
       showToast(`VUA LÝ THUYẾT kích hoạt! Luồng chữ hất văng chướng ngại trong ${duration} giây!`);
-                const deckX = Math.max(width + 115, nextScaffoldX);
-          const soloScaffold = window.gameRand() < 0.70;
-          if (soloScaffold) {burst(player.x + player.width / 2, player.y + player.height * 0.35, 30);
+      burst(player.x + player.width / 2, player.y + player.height * 0.35, 30);
       playTone(740, 0.2, 'triangle', 0.045);
+    
     } else if (selectedCharacter === 'tan') {
       broomTimer = 0;
             megaBroomThrown = false;
@@ -3288,6 +3287,10 @@
         // The long ground gap between decks makes the route alternate naturally.
         nextScaffoldX -= speed * dt;
         if (nextScaffoldX < width + 145 && platforms.length < 4) {
+                    const deckX = Math.max(width + 115, nextScaffoldX);
+          const soloScaffold = window.gameRand() < 0.70;
+          if (soloScaffold) {
+            
 
             // Frequent standalone scaffold: a clear, readable jump-and-land opportunity.
             const deckW = random(165, 205);
