@@ -963,6 +963,11 @@ button:focus-visible { outline: 3px solid var(--lime); outline-offset: 3px; }
 /* Ẩn nút Sao lưu khi đang ở màn hình chơi game */
 body:has(#gameScreen.is-active) #backupBtn,
 body:has(#gameScreen.is-active) .backup-btn,
-body:has(#gameScreen.is-active) [id*="backup" i] {
+body:has(#gameScreen.is-active) [id*="backup" i],
+body:has(#gameScreen.is-active) [class*="backup" i],
+body:has(#gameScreen.is-active) [id*="save" i],
+body:has(#gameScreen.is-active) [class*="save" i],
+body:has(#gameScreen.is-active) [title*="Sao lưu" i],
+body:has(#gameScreen.is-active) [aria-label*="Sao lưu" i] {
   display: none !important;
-}
+                  }
