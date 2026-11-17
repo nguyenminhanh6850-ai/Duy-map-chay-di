@@ -18,7 +18,7 @@
   // =========================================================
   const CONFIG = {
     // Nhánh dữ liệu trên Firebase Realtime Database
-    EVENT_PATH: 'events/global_run_67k_3days',
+    EVENT_PATH: 'events/global_run_67k_3days_v1',
 
     // Thời điểm bắt đầu sự kiện:
     //  • null  → tự bắt đầu khi có người đầu tiên mở game (giờ server được ghi vào events/.../startAt;
