@@ -3152,7 +3152,9 @@
       playTone(200, 0.24, 'sawtooth', 0.05);
     } else if (selectedCharacter === 'trieu') {
       showToast(`VUA LÝ THUYẾT kích hoạt! Luồng chữ hất văng chướng ngại trong ${duration} giây!`);
-      burst(player.x + player.width / 2, player.y + player.height * 0.35, 30);
+                const deckX = Math.max(width + 115, nextScaffoldX);
+          const soloScaffold = window.gameRand() < 0.70;
+          if (soloScaffold) {burst(player.x + player.width / 2, player.y + player.height * 0.35, 30);
       playTone(740, 0.2, 'triangle', 0.045);
     } else if (selectedCharacter === 'tan') {
       broomTimer = 0;
@@ -3286,9 +3288,7 @@
         // The long ground gap between decks makes the route alternate naturally.
         nextScaffoldX -= speed * dt;
         if (nextScaffoldX < width + 145 && platforms.length < 4) {
-          const deckX = Math.max(width + 115, nextScaffoldX);
-          const soloScaffold = window.gameRand() < 0.70;
-          if (soloScaffold) {
+
             // Frequent standalone scaffold: a clear, readable jump-and-land opportunity.
             const deckW = random(165, 205);
             const deckY = groundY - random(82, 108);
@@ -3406,7 +3406,7 @@
           }
         }
       });
-      obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.w > -30 && !obstacle.destroyedByLightning && !obstacle.destroyedByNinja && !obstacle.knockedByTrieu && !obstacle.knockedByTan);
+      obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.w > -30 && !obstacle.destroyedByLightning && !obstacle.destroyedByNinja && !obstacle.knockedByTrieu && !obstacle.knockedByTan && !obstacle.ghostCleared);
       validateSupport(); // bus đã dịch chuyển xong: kiểm tra lại bệ đỡ ngay trong cùng khung hình
 
       // Swept one-way landing on bus roofs and scaffold decks; side/front contact remains dangerous.
@@ -3494,11 +3494,13 @@
   }
 
   function checkCollision(obstacle) {
-    if (obstacle.ignored) return false;
-    const pw = Math.max(player.width * 0.52, player.height * 0.30);
-    const px = player.x + player.width * 0.25 - (pw - player.width * 0.52) / 2;
+        if (obstacle.ignored) return false;
+    const isMuRat = selectedCharacter === 'murat';
+    const pw = isMuRat ? player.height * 0.30 : Math.max(player.width * 0.52, player.height * 0.30);
+    const px = isMuRat ? player.x + player.width * 0.42 : player.x + player.width * 0.25 - (pw - player.width * 0.52) / 2;
     const py = player.y + player.height * 0.12;
     const ph = player.height * 0.84;
+    
     if (obstacle.type === 'wall') {
       const ox = obstacle.x + 2, oy = obstacle.y + 2;
       const ow = obstacle.w - 4, oh = obstacle.h - 2;
