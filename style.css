@@ -960,3 +960,9 @@ button:focus-visible { outline: 3px solid var(--lime); outline-offset: 3px; }
   .ev-ms { grid-template-columns: 30px minmax(0, 1fr); }
   .ev-ms .card-btn { grid-column: 1 / -1; width: 100%; }
 }
+/* Ẩn nút Sao lưu khi đang ở màn hình chơi game */
+body:has(#gameScreen.is-active) #backupBtn,
+body:has(#gameScreen.is-active) .backup-btn,
+body:has(#gameScreen.is-active) [id*="backup" i] {
+  display: none !important;
+}
