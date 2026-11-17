@@ -3368,7 +3368,14 @@
           burst(obstacle.x + obstacle.w / 2, obstacle.y + obstacle.h / 2, 8, false, '#ffcf4d');
           if (lightningCooldown <= 0) { lightningCooldown = 0.12; playTone(vfxRandom(420, 620), 0.06, 'triangle', 0.025); }
         }
-
+        // Mu Rát: bóng ma lướt lên phía trước làm tan biến chướng ngại vật chạm phải
+        if (selectedCharacter === 'murat' && skillActive && !obstacle.ghostCleared &&
+            muRatCloneX + player.width * 0.8 > obstacle.x && muRatCloneX + player.width * 0.2 < obstacle.x + obstacle.w) {
+          obstacle.ghostCleared = true;
+          burst(obstacle.x + obstacle.w / 2, obstacle.y + obstacle.h / 2, 12, false, '#72eaff');
+          playTone(vfxRandom(650, 950), 0.06, 'sine', 0.02);
+                                 }
+        
         // Ninja: katana chém đứt đôi mọi chướng ngại trong tầm chém (cả trên không khi nhân vật nhảy).
         if (selectedCharacter === 'toduy' && skillActive && !obstacle.destroyedByNinja && groundPlatform !== obstacle) {
           const bandTop = player.y - 64;
