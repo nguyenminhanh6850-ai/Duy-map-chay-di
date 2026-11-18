@@ -238,8 +238,8 @@
   let bonusMilestone = 0;
   let spareHits = 0;
   // V23 — Phát · Tích Nộ Quyền (khai báo sớm để các hàm dùng chung gọi được mọi lúc)
-  const PHAT_RAGE_PER_OBSTACLE = 10; // vượt chướng ngại / né đạn Boss
-  const PHAT_RAGE_PER_250M = 10;     // mỗi 250m
+  const PHAT_RAGE_PER_OBSTACLE = 7; // vượt chướng ngại / né đạn Boss
+  const PHAT_RAGE_PER_250M = 7;     // mỗi 250m
   let phatRage = 0;
   let phatNextMark = 250;
   let phatEffect = null;             // 'integral' | 'sugar' | 'prob' trong lúc bật chiêu
