@@ -226,7 +226,7 @@
     duyquandoi: { image: 'assets/duy-quan-doi.png', skill: 'CHI VIỆN', baseCooldown: 38, upgradedCooldown: 33, baseDuration: 16, upgradedDuration: 19, description: 'Miễn nhiễm va chạm, gọi 2 Duy Hành quân hộ tống trước và sau.' },
     trieu: { image: 'assets/trieu.png', skill: 'VUA LÝ THUYẾT', baseCooldown: 36, upgradedCooldown: 31, baseDuration: 14, upgradedDuration: 17, description: 'Nội tại tăng sức mạnh theo điểm; luồng chữ hất văng chướng ngại vật.' },
     tan: { image: 'assets/tan.png', skill: 'NÉM CHỔI', baseCooldown: 27, upgradedCooldown: 24, baseDuration: 13, upgradedDuration: 15, description: 'Thụ động: tự kích hoạt, miễn nhiễm va chạm và liên tục ném cây chổi xoay tròn hất văng mọi chướng ngại phía trước.' },
-    phat: { image: 'assets/phat.png', skill: 'TÍCH NỘ QUYỀN', baseCooldown: 0, upgradedCooldown: 0, baseDuration: 13, upgradedDuration: 16, description: 'Chủ động: vượt chướng ngại (+10 Nộ) và chạy mỗi 250m (+10 Nộ). Đủ Nộ thì bấm nút / phím E · S: 13 giây miễn nhiễm va chạm + quay ngẫu nhiên 1 trong 3 hiệu ứng.' },
+    phat: { image: 'assets/phat.png', skill: 'TÍCH NỘ QUYỀN', baseCooldown: 0, upgradedCooldown: 0, baseDuration: 10, upgradedDuration: 13, description: 'Chủ động: vượt chướng ngại (+7 nộ) và chạy mỗi 250m (+7 Nộ). Đủ Nộ thì bấm nút / phím E · S: 13 giây miễn nhiễm va chạm + quay ngẫu nhiên 1 trong 3 hiệu ứng.' },
     tien: { image: 'assets/tien.png', skill: 'NHẢY KÉP', baseCooldown: 0, upgradedCooldown: 0, baseDuration: 0, upgradedDuration: 0,
       skinSkill: 'ANH EM “SÉT”', skinBaseCooldown: 50, skinUpgradedCooldown: 44, skinBaseDuration: 22, skinUpgradedDuration: 25,
       description: 'Chủ động: bấm nhảy thêm 1 lần trên không, hồi lại khi chạm đất / nóc xe / giàn giáo. Skin Tiến Trọng Duy: Anh em “Sét” đi cùng, miễn nhiễm va chạm và phóng sét phá chướng ngại.' }
@@ -1248,7 +1248,7 @@
     } else {
       rare = true;
       if (miniKeys < 3) { miniKeys++; text = `🔑 Key Mini-game (${miniKeys}/3)`; }
-      else { crystals += 15; text = '🔑 Key Mini-game (đã đủ 3/3) → đền bù 💎 50'; }
+      else { crystals += 50; text = '🔑 Key Mini-game (đã đủ 3/3) → đền bù 💎 50'; }
     }
     return { coin, text, rare };
   }
