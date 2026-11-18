@@ -624,7 +624,7 @@
     {
       version: 'V23', title: 'Phát · Hoàng Hôn · Biển Hiệu Mới', date: '18/11/2026',
       items: [
-        'Nhân vật Gacha thứ năm <b>Phát</b> ⚡ với kỹ năng chủ động <i>TÍCH NỘ QUYỀN</i>: thanh kỹ năng không chạy theo thời gian mà nạp Nộ khi <b>vượt chướng ngại vật (+10)</b>, né đạn / tên lửa Boss (+10) và mỗi <b>250m (+10)</b> (hiện chữ C₆H₁₂O₆).',
+        'Nhân vật Gacha thứ năm <b>Phát</b> ⚡ với kỹ năng chủ động <i>TÍCH NỘ QUYỀN</i>: thanh kỹ năng không chạy theo thời gian mà nạp Nộ khi <b>vượt chướng ngại vật (+7)</b>, né đạn / tên lửa Boss (+7) và mỗi <b>250m (+7)</b> (hiện chữ C₆H₁₂O₆).',
         'Đủ Nộ thì bấm nút kích hoạt trên màn hình (hoặc phím <b>E / S</b>); nếu lỡ va chạm lúc đang đầy Nộ, kỹ năng tự bật để cứu nguy. Đang bật chiêu thì không tích thêm Nộ.',
         'Kỹ năng kéo dài 13 giây, <b>miễn nhiễm va chạm 100%</b> và quay ngẫu nhiên: <b>50% ∫ f(x)dx</b> (lấp hố nước, xóa vật cản tầm thấp) · <b>30% C₁₂H₂₂O₁₁</b> (×2 Coin, không ×2 điểm) · <b>20% P = 0.2</b> (vật cản → +35 Coin/vật, hồi +1 giáp tối đa bằng giáp đầu trận).',
         'Nâng cấp Phát: Lv2 400 Coin giảm Nộ cần từ 100 xuống 85; Lv3 1.000 Coin duy trì 13→16 giây; Lv4 1.600 Coin thêm 1 giáp đầu trận.',
@@ -746,7 +746,7 @@
   const LB_KEY_NAME = 'duyMapChayDiName';
   const LB_TOP = 15;
   const LB_NPCS = [
-    { id: 'npc_ong_duy_chan_pa', name: 'Ông Duy Chan Pa', score: 333, character: 'Duy' },
+    { id: 'npc_ong_duy_chan_pa', name: 'Ông Duy Chan Pa', score: 3333, character: 'Duy' },
     { id: 'npc_viet_quat', name: 'Việt quất', score: 3636, character: 'Mu Rát' },
     { id: 'npc_t_burh_tv', name: 'T Burh TV', score: 200, character: 'Trọng “Sét”' }
   ];
@@ -3365,7 +3365,7 @@
   // =====================================================================
   // V22 — TÂN · NÉM CHỔI: chổi cán đỏ đầu vàng xoay tròn bay ~360px phía trước, hất văng chướng ngại
   // =====================================================================
-  const IMMUNE_SKILL_CHARS = ['duy', 'murat', 'duyquandoi', 'tien', 'trieu', 'tan', 'phat', 'quang']; // kỹ năng miễn nhiễm va chạm
+  const IMMUNE_SKILL_CHARS = ['duy', 'murat', 'toduy' , 'duyquandoi', 'tien', 'trieu', 'tan', 'phat', 'quang']; // kỹ năng miễn nhiễm va chạm
   const BROOM_RANGE = 360;     // tầm bay của mỗi cây chổi (px)
   const BROOM_SPEED = 780;     // tốc độ bay (px/s)
   const BROOM_INTERVAL = 0.36; // nhịp ném (giây)
