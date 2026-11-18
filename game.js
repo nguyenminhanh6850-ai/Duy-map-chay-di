@@ -4499,7 +4499,7 @@
       }
       drawQuangBike();
     }
-    if (sprite.complete && sprite.naturalWidth > 0 && !(skillActive && selectedCharacter === 'quang')) {
+    else if (sprite.complete && sprite.naturalWidth > 0) {
       // The provided transparent cutout is drawn proportionally, never stretched.
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
