@@ -362,7 +362,14 @@
       const opp = oppData();
       ovLines.appendChild(el('div', 'mp-line', `Bạn: ${fmt(lastResult.myScore)}m`));
       ovLines.appendChild(el('div', 'mp-line', `${opp ? opp.name : 'Đối thủ'}: ${fmt(lastResult.oppScore)}m`));
-      if (lastResult.rewarded) ovLines.appendChild(el('div', 'mp-line is-reward', `+${WIN_REWARD.crystal} 💎  +${fmt(WIN_REWARD.coin)} 🪙`));
+      if (lastResult.rewarded) {
+  const rewardText = lastResult.gotCrystal > 0
+    ? `+${lastResult.gotCrystal} 💎  +${fmt(WIN_REWARD.coin)} 🪙`
+    : `+${fmt(WIN_REWARD.coin)} 🪙 (Đã hết lượt nhận 💎 hôm nay)`;
+  ovLines.appendChild(el('div', 'mp-line is-reward', rewardText));
+} else if (win && lastResult.myScore < MIN_SCORE_FOR_REWARD) {
+  ovLines.appendChild(el('div', 'mp-line', `Cần đạt tối thiểu ${MIN_SCORE_FOR_REWARD}m để nhận thưởng`));
+      }
       ovActions.hidden = false;
       quitBtn.hidden = true;
       exitBtn.hidden = false;
@@ -717,14 +724,18 @@
     const myScore = phase === 'waiting' || !mine.alive ? (Number(mine.score) || 0) : Math.floor(GB.score);
     phase = 'result';
     if (GB.state === 'running') GB.endGame();           // đối thủ thoát giữa trận: dừng ván của mình
-    let rewarded = false;
-    if (winner === me() && rewardedRound !== room.round) {
-      rewardedRound = room.round;
-      GB.addReward(WIN_REWARD.crystal, WIN_REWARD.coin);
-      GB.playUiSound('claim');
-      rewarded = true;
-    }
-    lastResult = { winner, reason, myScore, oppScore: Number(opp.score) || 0, rewarded };
+     let rewarded = false;
+ if (winner === me() && rewardedRound !== room.round && myScore >= MIN_SCORE_FOR_REWARD) {
+   rewardedRound = room.round;
+   const gotCrystal = canClaimSoloCrystal() ? WIN_REWARD.crystal : 0;
+   if (gotCrystal > 0) recordSoloCrystalWin();
+   GB.addReward(gotCrystal, WIN_REWARD.coin);
+   GB.playUiSound('claim');
+   rewarded = true;
+ }
+     
+    lastResult = { winner, reason, myScore, oppScore: Number(opp.score) || 0, rewarded, gotCrystal };
+     
     roomRef.child('status').transaction((cur) => (cur === 'playing' ? 'finished' : undefined), undefined, false).catch(() => {});
     renderOverlay();
   }
