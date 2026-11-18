@@ -222,7 +222,7 @@
     quang: {
       name: 'Quang',
       levels: [
-        { level: 2, cost: 1500, title: 'Động cơ tăng áp', desc: 'Giảm hồi chiêu GOD RIDER từ 12 xuống 10 giây.' },
+        { level: 2, cost: 1500, title: 'Động cơ tăng áp', desc: 'Giảm hồi chiêu GOD RIDER từ 15 xuống 12.5 giây.' },
         { level: 3, cost: 3500, title: 'Bình xăng lớn', desc: 'Tăng thời gian lái mô tô từ 3,5 lên 4,5 giây.' },
         { level: 4, cost: 6000, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
       ]
@@ -240,7 +240,7 @@
     tien: { image: 'assets/tien.png', skill: 'NHẢY KÉP', baseCooldown: 0, upgradedCooldown: 0, baseDuration: 0, upgradedDuration: 0,
       skinSkill: 'ANH EM “SÉT”', skinBaseCooldown: 50, skinUpgradedCooldown: 44, skinBaseDuration: 22, skinUpgradedDuration: 25,
       description: 'Chủ động: bấm nhảy thêm 1 lần trên không, hồi lại khi chạm đất / nóc xe / giàn giáo. Skin Tiến Trọng Duy: Anh em “Sét” đi cùng, miễn nhiễm va chạm và phóng sét phá chướng ngại.' },
-    quang: { image: 'assets/quang.png', skill: 'GOD RIDER', baseCooldown: 12, upgradedCooldown: 10, baseDuration: 3.5, upgradedDuration: 4.5, description: 'Chủ động: cưỡi siêu mô tô tăng tốc 1,45×, miễn nhiễm va chạm, cán văng vật cản và lướt qua hố nước.' }
+    quang: { image: 'assets/quang.png', skill: 'GOD RIDER', baseCooldown: 15, upgradedCooldown: 12, baseDuration: 3.5, upgradedDuration: 4.5, description: 'Chủ động: cưỡi siêu mô tô tăng tốc 1,45×, miễn nhiễm va chạm, cán văng vật cản và lướt qua hố nước.' }
   };
   let coinBalance = 0;
   let upgrades = { duy: 1, trong: 1, murat: 1, toduy: 1, duyquandoi: 1, trieu: 1, tan: 1, phat: 1, tien: 1, quang: 1 };
@@ -309,7 +309,7 @@
     else if (key === 'trieu') value = (lv >= 2 ? 31 : 36) - (score >= 4000 ? 3 : score >= 2000 ? 1 : 0);
     else if (key === 'tan') value = lv >= 2 ? 24 : 27; // V22: Ném chổi — hồi chiêu 27s, Lv2 còn 24s
     else if (key === 'phat') value = 0; // V23: Phát không có hồi chiêu theo thời gian (tích Nộ)
-    else if (key === 'quang') value = lv >= 2 ? 10 : 12;
+    else if (key === 'quang') value = lv >= 2 ? 12.5 : 15;
     else if (key === 'trong') value = lv >= 2 ? 35 : 40;
     else value = lv >= 2 ? 30 : 36;
     // Vật phẩm giảm hồi chiêu: giảm 15% thời gian hồi trong các màn có hiệu lực (chỉ khi đang chạy).
