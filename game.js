@@ -205,7 +205,7 @@
       name: 'Phát',
       levels: [
         { level: 2, cost: 400, title: 'Tích nộ nhanh', desc: 'Giảm yêu cầu Nộ để kích hoạt từ 100 xuống 85.' },
-        { level: 3, cost: 1000, title: 'Quyền năng bền bỉ', desc: 'Tăng thời gian duy trì kỹ năng từ 13 lên 16 giây.' },
+        { level: 3, cost: 1000, title: 'Quyền năng bền bỉ', desc: 'Tăng thời gian duy trì kỹ năng từ 10 lên 13 giây.' },
         { level: 4, cost: 1600, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
       ]
     },
@@ -311,7 +311,7 @@
     else if (key === 'duyquandoi') value = lv >= 3 ? 19 : 16;
     else if (key === 'trieu') value = (lv >= 3 ? 17 : 14) + (score >= 5000 ? 2 : score >= 3000 ? 1 : 0);
     else if (key === 'tan') value = lv >= 3 ? 15 : 13; // V22: Ném chổi — duy trì 13s, Lv3 lên 15s
-    else if (key === 'phat') value = lv >= 3 ? 16 : 13; // V23: Tích Nộ Quyền — duy trì 13s, Lv3 lên 16s
+    else if (key === 'phat') value = lv >= 3 ? 13 : 10; // V23: Tích Nộ Quyền — duy trì 10s, Lv3 lên 13s
     else {
       const base = key === 'duy' ? 12 : 15;
       value = lv >= 3 ? (key === 'duy' ? 15 : 18) : base;
@@ -3395,7 +3395,7 @@
     if (!phatReady()) return false;
     skillTriggered = true;
     runSkillCount++;
-    const duration = skillDuration();
+    const duration = Math.round(skillDuration() * (auto ? 0.5 : 1) * 10) / 10;
     skillActiveUntil = elapsedRun + duration;
     phatRage = 0;
     const r = Math.random(); // quay xác suất P(A) — dùng Math.random (không dùng gameRand để không lệch seed Solo)
