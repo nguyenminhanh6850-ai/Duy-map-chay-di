@@ -1,4 +1,4 @@
-const CACHE_NAME = 'duy-map-chay-di-v22.6';
+const CACHE_NAME = 'duy-map-chay-di-v22.7';
 
 // 1. Cài đặt Service Worker ngay lập tức
 self.addEventListener('install', (event) => {
