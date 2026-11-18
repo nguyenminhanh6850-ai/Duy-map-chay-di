@@ -20,7 +20,27 @@
   if (!GB) { console.warn('multiplayer.js: không thấy window.GameBridge (game.js chưa nạp?)'); return; }
 
   // ---------- Cấu hình ----------
-  const WIN_REWARD = { crystal: 5, coin: 400 };    // thưởng cho người thắng (kể cả thắng do đối thủ thoát)
+    const WIN_REWARD = { crystal: 5, coin: 400 };    // thưởng cho người thắng
+  const MAX_DAILY_CRYSTAL_WINS = 3;                 // giới hạn nhận Crystal tối đa 3 lần/ngày
+  const MIN_SCORE_FOR_REWARD = 100;                 // phải chạy ít nhất 100m mới có thưởng
+
+  function canClaimSoloCrystal() {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const data = JSON.parse(localStorage.getItem('duyMapSoloDaily') || '{}');
+      return data.date !== today || (data.count || 0) < MAX_DAILY_CRYSTAL_WINS;
+    } catch (_) { return true; }
+  }
+
+  function recordSoloCrystalWin() {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const data = JSON.parse(localStorage.getItem('duyMapSoloDaily') || '{}');
+      const count = data.date === today ? (data.count || 0) + 1 : 1;
+      localStorage.setItem('duyMapSoloDaily', JSON.stringify({ date: today, count }));
+    } catch (_) { /* storage may be disabled */ }
+  }
+   // thưởng cho người thắng (kể cả thắng do đối thủ thoát)
   const SEND_INTERVAL = 1 / 12;                     // ~12 lần/giây
   const COUNTDOWN_MS = 3300;                        // 3 - 2 - 1 - GO
   const SCORE_TO_PX = 9.4;                          // game.js: score += dt * speed / 9.4  →  1 điểm ≈ 9.4px
