@@ -320,7 +320,7 @@ button:focus-visible { outline: 3px solid var(--lime); outline-offset: 3px; }
 .char-card[data-key="trong"] { --accent: #5fd8ff; }
 .char-card[data-key="murat"] { --accent: #c89bff; }
 /* V22: nhóm nhân vật Gacha cùng tông đỏ (Tô Duy · Duy Quân đội · Triều · Tân) */
-.char-card[data-key="toduy"], .char-card[data-key="duyquandoi"], .char-card[data-key="trieu"], .char-card[data-key="tan"], .char-card[data-key="phat"] { --accent: #ff7a7a; }
+.char-card[data-key="toduy"], .char-card[data-key="duyquandoi"], .char-card[data-key="trieu"], .char-card[data-key="tan"], .char-card[data-key="phat"], .char-card[data-key="onghai"]{ --accent: #ff7a7a; }
 .char-card:hover { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 26px color-mix(in srgb, var(--accent) 55%, transparent); transform: translateY(-3px); }
 .char-card.is-selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,211,77,.3), 0 0 22px rgba(255,211,77,.3); }
 .char-card.is-selected:hover { border-color: var(--accent); }
