@@ -3481,7 +3481,7 @@
   // =====================================================================
   // V22 — TÂN · NÉM CHỔI: chổi cán đỏ đầu vàng xoay tròn bay ~360px phía trước, hất văng chướng ngại
   // =====================================================================
-  const IMMUNE_SKILL_CHARS = ['duy', 'murat', 'duyquandoi', 'tien', 'trieu', 'tan', 'phat', 'onghai', 'quang']; // kỹ năng miễn nhiễm va chạm
+  const IMMUNE_SKILL_CHARS = ['duy', 'murat', 'duyquandoi', 'toduy', 'tien', 'trieu', 'tan', 'phat', 'onghai', 'quang']; // kỹ năng miễn nhiễm va chạm
   const BROOM_RANGE = 360;     // tầm bay của mỗi cây chổi (px)
   const BROOM_SPEED = 780;     // tốc độ bay (px/s)
   const BROOM_INTERVAL = 0.36; // nhịp ném (giây)
