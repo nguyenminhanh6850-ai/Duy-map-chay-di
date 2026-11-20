@@ -1219,7 +1219,8 @@
     botSearchTimer = 0;
     const ref = roomRef;
     if (phase !== 'room' || !room || !ref || botMatch) { clearBotSearch(); return; }
-    if (Object.keys(playersOf(room)).length >= MIN_PLAYERS)
+        if (Object.keys(playersOf(room)).length >= MIN_PLAYERS) { clearBotSearch(); return; }
+    clearBotSearch();
     let removed = false;
     botRemoving = true;
     try {
