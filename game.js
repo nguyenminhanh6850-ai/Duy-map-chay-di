@@ -1,0 +1,5843 @@
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const stage = $('gameStage');
+  const app = $('app');
+  const lobbyScreen = $('lobbyScreen');
+  const gameScreen = $('gameScreen');
+  const playButton = $('playButton');
+  const openCharactersBtn = $('openCharacters');
+  const openHelpBtn = $('openHelp');
+  const characterModal = $('characterModal');
+  const helpModal = $('helpModal');
+  const cardRow = $('cardRow');
+  const achvList = $('achvList');
+  const lobbyCoin = $('lobbyCoin');
+  const lobbyBest = $('lobbyBest');
+  const modalCoin = $('modalCoin');
+  const heroSprite = $('heroSprite');
+  const heroName = $('heroName');
+  const heroLevel = $('heroLevel');
+  const heroSkill = $('heroSkill');
+  const scoreValue = $('scoreValue');
+  const runCoinValue = $('runCoinValue');
+  const shieldIcon = $('shieldIcon');
+  const skillBar = $('skillBar');
+  const skillFill = $('skillFill');
+  const skillLabel = $('skillLabel');
+  const toast = $('toast');
+  const gameOver = $('gameOver');
+  const overPanel = gameOver.querySelector('.over-panel');
+  const overKicker = $('overKicker');
+  const overTitle = $('overTitle');
+  const overScore = $('overScore');
+  const overCoin = $('overCoin');
+  const overBest = $('overBest');
+  const retryButton = $('retryButton');
+  const backLobbyButton = $('backLobbyButton');
+  const soundButton = $('soundButton');
+  const soundIcon = $('soundIcon');
+  const soundText = $('soundText');
+  const lobbyCrystal = $('lobbyCrystal');
+  const questDot = $('questDot');
+  const miniKeysLabel = $('miniKeysLabel');
+  const miniIcon = $('miniIcon');
+  const equipStrip = $('equipStrip');
+  const hudItems = $('hudItems');
+  const questModal = $('questModal');
+  const challengeList = $('challengeList');
+  const challengeTimerEl = $('challengeTimer');
+  const challengeDot = $('challengeDot');
+  const challengeLock = $('challengeLock');
+  const gachaModal = $('gachaModal');
+  const miniModal = $('miniModal');
+  const questList = $('questList');
+  const questBonus = $('questBonus');
+  const gachaBox = $('gachaBox');
+  const gachaResults = $('gachaResults');
+  const bagList = $('bagList');
+  const miniBody = $('miniBody');
+  const bagPane = $('bagPane');
+  const shopModal = $('shopModal');
+  const shopBody = $('shopBody');
+  const shopBubble = $('shopBubble');
+
+  // Khung logic của canvas được giữ gần như cố định (vật lý/chướng ngại vật dùng pixel),
+  // rồi phóng to bằng CSS để lấp đầy màn hình mà không đổi độ khó.
+  const LOGICAL_MIN_H = 300;
+  const LOGICAL_MAX_H = 380;
+  const LOGICAL_TARGET_W = 660;
+  const MIN_ASPECT = 1.5;
+  const MAX_ASPECT = 2.6;
+
+  let toastTimer = 0;
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+  const fmt = (n) => Math.floor(n).toLocaleString('vi-VN');
+
+  const characters = {
+    duy: { name: 'Duy', src: 'assets/nhan-vat.png' },
+    trong: { name: 'Trọng \"Sét\"', src: 'assets/trong-set.png' },
+    murat: { name: 'Mu Rát', src: 'assets/mu-rat.png', unlock: 3333 },
+    toduy: { name: 'Tô Duy', src: 'assets/to-duy.png' },
+    duyquandoi: { name: 'Duy Quân đội', src: 'assets/duy-quan-doi.png' },
+    trieu: { name: 'Triều', src: 'assets/trieu.png' },
+    tan: { name: 'Tân', src: 'assets/tan.png' },
+    phat: { name: 'Phát', src: 'assets/phat.png' },
+    onghai: { name: 'Ông Hai', src: 'assets/ong-hai.png' },
+    tien: { name: 'Tiến', src: 'assets/tien.png' },
+    quang: { name: 'Quang', src: 'assets/quang.png' }
+  };
+  let selectedCharacter = 'duy';
+  let sprite = new Image();
+  function isMuRatUnlocked() { return best >= 3333 || score >= 3333; }
+  function isCharUnlocked(key) {
+    if (key === 'murat') return isMuRatUnlocked();
+    if (key === 'toduy') return !!owned.toduy;
+    if (key === 'duyquandoi') return !!owned.duyquandoi;
+    if (key === 'trieu') return !!owned.trieu;
+    if (key === 'tan') return !!owned.tan;
+    if (key === 'phat') return !!owned.phat;
+    if (key === 'onghai') return !!owned.onghai;
+    if (key === 'tien') return !!owned.tien;
+    if (key === 'quang') return !!owned.quang;
+    return true;
+  }
+  let muRatShown = false;
+  function refreshCharacterLocks() {
+    const unlocked = isMuRatUnlocked();
+    if (unlocked === muRatShown) return;
+    muRatShown = unlocked;
+    renderCharacterCards();
+    if (unlocked && state === 'running') showToast('MU RÁT ĐÃ MỞ KHÓA! Vào sảnh để chọn nhân vật mới.');
+  }
+  function loadCharacter(key) {
+    if (!isCharUnlocked(key)) return;
+    selectedCharacter = key;
+    try { localStorage.setItem('duyMapChayDiChar', key); } catch (_) { /* storage may be disabled */ }
+    const info = characters[key] || characters.duy;
+    const nextSprite = new Image();
+    nextSprite.onload = () => { sprite = nextSprite; fitCanvas(); render(); };
+    nextSprite.onerror = () => console.error('Không tải được ảnh nhân vật:', info.src);
+    nextSprite.src = info.src;
+    updateLobby();
+    renderCharacterCards();
+    if (state !== 'running') render();
+  }
+  sprite.onload = () => fitCanvas();
+  sprite.onerror = () => console.error('Không tải được ảnh nhân vật Duy: assets/nhan-vat.png');
+  sprite.src = characters.duy.src;
+  const canSprite = new Image();
+  canSprite.onload = () => render();
+  canSprite.onerror = () => console.error('Không tải được ảnh lon bia: assets/bia-333.png');
+  canSprite.src = 'assets/bia-333.png';
+  const busSprite = new Image();
+  busSprite.onload = () => render();
+  busSprite.onerror = () => console.error('Không tải được ảnh xe buýt: assets/xe-buyt.png');
+  busSprite.src = 'assets/xe-buyt.png';
+
+  let best = 0;
+  try {
+    const storedBest = Number(localStorage.getItem('duyMapChayDiBest') || 0);
+    best = Number.isFinite(storedBest) && storedBest > 0 ? storedBest : 0;
+  } catch (_) { /* local-file browsing may restrict storage */ }
+  const upgradeConfig = {
+    duy: {
+      name: 'Duy',
+      levels: [
+        { level: 2, cost: 300, title: 'Hồi chiêu nhanh hơn', desc: 'Giảm hồi chiêu Hành quân từ 36 xuống 30 giây.' },
+        { level: 3, cost: 750, title: 'Hành quân bền bỉ', desc: 'Tăng thời gian Hành quân từ 12 lên 15 giây.' },
+        { level: 4, cost: 1200, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    trong: {
+      name: 'Trọng “Sét”',
+      levels: [
+        { level: 2, cost: 300, title: 'Sét hồi nhanh', desc: 'Giảm hồi chiêu từ 40 xuống 35 giây.' },
+        { level: 3, cost: 750, title: 'Sét kéo dài', desc: 'Tăng thời gian kỹ năng từ 15 lên 18 giây.' },
+        { level: 4, cost: 1200, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    murat: {
+      name: 'Mu Rát',
+      levels: [
+        { level: 2, cost: 400, title: 'Lướt nhanh hơn', desc: 'Giảm hồi chiêu Lướt lướt từ 36 xuống 30 giây.' },
+        { level: 3, cost: 1000, title: 'Lướt kéo dài', desc: 'Tăng thời gian Lướt lướt từ 15 lên 18 giây.' },
+        { level: 4, cost: 1600, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    toduy: {
+      name: 'Tô Duy',
+      levels: [
+        { level: 2, cost: 300, title: 'Ninja hồi nhanh', desc: 'Giảm thời gian chờ kích hoạt Ninja từ 25 xuống 22 giây.' },
+        { level: 3, cost: 750, title: 'Ninja bền bỉ', desc: 'Tăng thời gian duy trì Ninja từ 8 lên 12 giây.' },
+        { level: 4, cost: 1200, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    duyquandoi: {
+      name: 'Duy Quân đội',
+      levels: [
+        { level: 2, cost: 400, title: 'Chi viện nhanh', desc: 'Giảm hồi chiêu Chi viện từ 38 xuống 33 giây.' },
+        { level: 3, cost: 1000, title: 'Chi viện bền bỉ', desc: 'Tăng thời gian Chi viện từ 16 lên 19 giây.' },
+        { level: 4, cost: 1600, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    trieu: {
+      name: 'Triều',
+      levels: [
+        { level: 2, cost: 400, title: 'Vua lý thuyết hồi nhanh', desc: 'Giảm hồi chiêu gốc từ 36 xuống 31 giây.' },
+        { level: 3, cost: 1000, title: 'Vua lý thuyết bền bỉ', desc: 'Tăng thời gian duy trì gốc từ 14 lên 17 giây.' },
+        { level: 4, cost: 1600, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    tan: {
+      name: 'Tân',
+      levels: [
+        { level: 2, cost: 400, title: 'Ném chổi hồi nhanh', desc: 'Giảm hồi chiêu Ném chổi từ 27 xuống 24 giây.' },
+        { level: 3, cost: 1000, title: 'Ném chổi bền bỉ', desc: 'Tăng thời gian duy trì Ném chổi từ 13 lên 15 giây.' },
+        { level: 4, cost: 1600, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    phat: {
+      name: 'Phát',
+      levels: [
+        { level: 2, cost: 400, title: 'Tích nộ nhanh', desc: 'Giảm yêu cầu Nộ để kích hoạt từ 100 xuống 85.' },
+        { level: 3, cost: 1000, title: 'Quyền năng bền bỉ', desc: 'Tăng thời gian duy trì kỹ năng từ 10 lên 13 giây.' },
+        { level: 4, cost: 1600, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    onghai: {
+      name: 'Ông Hai',
+      levels: [
+        { level: 2, cost: 400, title: 'Thông nòng điếu', desc: 'Giảm hồi chiêu gốc từ 30 xuống 27 giây.' },
+        { level: 3, cost: 1000, title: 'Thuốc lào tiên phẩm', desc: 'Tăng thời gian bay gốc từ 15 lên 17 giây.' },
+        { level: 4, cost: 1600, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    },
+    tien: {
+      name: 'Tiến',
+      levels: [
+        { level: 2, cost: 400, title: 'Bật nhảy mạnh · Sét hồi nhanh', desc: 'Cả 2 dạng: +12% lực bật nhảy kép. Bản Skin: thêm giảm hồi chiêu Anh em “Sét” từ 50 xuống 44 giây.' },
+        { level: 3, cost: 1000, title: 'Lướt nhẹ · Sét bền bỉ', desc: 'Cả 2 dạng: giảm 15% tốc độ rơi sau khi nhảy kép (dễ căn bệ). Bản Skin: thêm tăng thời gian duy trì Anh em “Sét” từ 22 lên 25 giây.' },
+        { level: 4, cost: 1600, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt (cả 2 dạng).' }
+      ]
+    },
+    quang: {
+      name: 'Quang',
+      levels: [
+        { level: 2, cost: 1500, title: 'Động cơ tăng áp', desc: 'Giảm hồi chiêu GOD RIDER từ 15 xuống 12.5 giây.' },
+        { level: 3, cost: 3500, title: 'Bình xăng lớn', desc: 'Tăng thời gian lái mô tô từ 3,5 lên 4,5 giây.' },
+        { level: 4, cost: 6000, title: 'Chống chịu +1', desc: 'Chịu được thêm một lần va chạm trong mỗi lượt.' }
+      ]
+    }
+  };
+  const upgradeShowcaseInfo = {
+    duy: { image: 'assets/nhan-vat.png', skill: 'HÀNH QUÂN', baseCooldown: 36, upgradedCooldown: 30, baseDuration: 12, upgradedDuration: 15, description: 'Miễn nhiễm chướng ngại vật trong thời gian kỹ năng.' },
+    trong: { image: 'assets/trong-set.png', skill: 'SẤM SÉT', baseCooldown: 40, upgradedCooldown: 35, baseDuration: 15, upgradedDuration: 18, description: 'Gọi sét phá hủy chướng ngại vật trong thời gian kỹ năng.' },
+    murat: { image: 'assets/mu-rat.png', skill: 'LƯỚT LƯỚT', baseCooldown: 36, upgradedCooldown: 30, baseDuration: 15, upgradedDuration: 18, description: 'Hóa thành bóng ma và lướt xuyên qua chướng ngại vật.' },
+    toduy: { image: 'assets/to-duy.png', skill: 'NINJA', baseCooldown: 25, upgradedCooldown: 22, baseDuration: 8, upgradedDuration: 12, description: 'Thụ động: tự kích hoạt, katana chém đứt đôi mọi chướng ngại phía trước.' },
+    duyquandoi: { image: 'assets/duy-quan-doi.png', skill: 'CHI VIỆN', baseCooldown: 38, upgradedCooldown: 33, baseDuration: 16, upgradedDuration: 19, description: 'Miễn nhiễm va chạm, gọi 2 Duy Hành quân hộ tống; hết chiêu 2 đồng đội ở lại đỡ thay tối đa 2 lần va chạm.' },
+    trieu: { image: 'assets/trieu.png', skill: 'VUA LÝ THUYẾT', baseCooldown: 36, upgradedCooldown: 31, baseDuration: 14, upgradedDuration: 17, description: 'Nội tại tăng sức mạnh theo điểm; luồng chữ hất văng chướng ngại vật.' },
+    tan: { image: 'assets/tan.png', skill: 'NÉM CHỔI', baseCooldown: 27, upgradedCooldown: 24, baseDuration: 13, upgradedDuration: 15, description: 'Thụ động: tự kích hoạt, miễn nhiễm va chạm và liên tục ném cây chổi xoay tròn hất văng mọi chướng ngại phía trước.' },
+    phat: { image: 'assets/phat.png', skill: 'TÍCH NỘ QUYỀN', baseCooldown: 0, upgradedCooldown: 0, baseDuration: 10, upgradedDuration: 13, description: 'Chủ động: vượt chướng ngại (+7 nộ) và chạy mỗi 250m (+7 Nộ). Đủ Nộ thì bấm nút / phím E · S: 10 giây miễn nhiễm va chạm + quay ngẫu nhiên 1 trong 3 hiệu ứng.' },
+    onghai: { image: 'assets/ong-hai.png', skill: 'LÀO THỦ TU TIÊN', baseCooldown: 30, upgradedCooldown: 27, baseDuration: 15, upgradedDuration: 17, description: 'Thụ động: tự kích hoạt, cưỡi điếu cày bay trên cao, miễn nhiễm va chạm, nhả vòng khói hất văng vật cản tầm trung/cao. Cuối chiêu quay ngẫu nhiên: êm ái / say thuốc / tắt điếu.' },
+    tien: { image: 'assets/tien.png', skill: 'NHẢY KÉP', baseCooldown: 0, upgradedCooldown: 0, baseDuration: 0, upgradedDuration: 0,
+      skinSkill: 'ANH EM “SÉT”', skinBaseCooldown: 50, skinUpgradedCooldown: 44, skinBaseDuration: 22, skinUpgradedDuration: 25,
+      description: 'Chủ động: bấm nhảy thêm 1 lần trên không (cả bản gốc lẫn Skin), hồi lại khi chạm đất / nóc xe / giàn giáo. Skin Tiến Trọng Duy: giữ nguyên Nhảy kép, có thêm Anh em “Sét” đi cùng, miễn nhiễm va chạm và phóng sét phá chướng ngại.' },
+    quang: { image: 'assets/quang.png', skill: 'GOD RIDER', baseCooldown: 15, upgradedCooldown: 12, baseDuration: 3.5, upgradedDuration: 4.5, description: 'Chủ động: cưỡi siêu mô tô tăng tốc 1,45×, miễn nhiễm va chạm, cán văng vật cản và lướt qua hố nước.' }
+  };
+  let coinBalance = 0;
+  let upgrades = { duy: 1, trong: 1, murat: 1, toduy: 1, duyquandoi: 1, trieu: 1, tan: 1, phat: 1, onghai: 1, tien: 1, quang: 1 };
+  let upgradeCharacter = 'duy';
+  let lastCoinScore = 0;
+  let bonusMilestone = 0;
+  let spareHits = 0;
+  // V23 — Phát · Tích Nộ Quyền (khai báo sớm để các hàm dùng chung gọi được mọi lúc)
+  const PHAT_RAGE_PER_OBSTACLE = 7; // vượt chướng ngại / né đạn Boss
+  const PHAT_RAGE_PER_250M = 7;     // mỗi 250m
+  let phatRage = 0;
+  let phatNextMark = 250;
+  let phatEffect = null;             // 'integral' | 'sugar' | 'prob' trong lúc bật chiêu
+  let phatFx = [];                   // chữ nổi: +10 C₆H₁₂O₆, +35 Coin...
+  let runMaxSpare = 0;               // giáp tối đa đầu trận (hiệu ứng P = 0.2 không hồi vượt mức này)
+  let runCoins = 0;
+  let overAt = 0;
+  let overTimer = 0;
+  // --- V15: Crystal, vật phẩm, nhiệm vụ, Key, hiệu ứng katana ---
+  let crystals = 0;
+  let owned = { toduy: false, duyquandoi: false, trieu: false, tan: false, phat: false, onghai: false, tien: false, quang: false, tienSkin: false };
+  let equippedSkin = { tien: false }; // V20: đang mặc skin "Tiến Trọng Duy" hay không (lưu localStorage)
+  const TIEN_PRICE = 10000;             // Shop Đặc Biệt: mua nhân vật Tiến vĩnh viễn (Coin)
+  const QUANG_PRICE = 100000;           // Shop Đặc Biệt: mua nhân vật Quang vĩnh viễn (Coin)
+  const TIEN_SKIN_CRYSTAL = 20;         // Shop Cao Cấp: skin Tiến Trọng Duy bằng Crystal...
+  const TIEN_SKIN_COIN = 7500;          // ...hoặc bằng Coin
+  const tienSkinOn = (key = selectedCharacter) => key === 'tien' && !!owned.tienSkin && !!equippedSkin.tien;
+  // Nhân vật có kỹ năng theo chu kỳ (hồi chiêu + duy trì)? Tiến gốc chỉ có Nhảy kép chủ động nên không có.
+  const hasTimedSkill = (key = selectedCharacter) => key !== 'phat' && (key !== 'tien' || tienSkinOn('tien')); // Phát: tích Nộ chủ động, không theo hồi chiêu
+  const charName = (key) => (tienSkinOn(key) ? 'Tiến Trọng Duy' : upgradeConfig[key].name);
+  const charSkillName = (key) => (tienSkinOn(key) ? upgradeShowcaseInfo.tien.skinSkill : upgradeShowcaseInfo[key].skill);
+  let inventory = { shield: 0, magnet: 0, hourglass: 0, duration: 0 };
+  let equipped = { shield: false, magnet: false, hourglass: false, duration: false };
+  let miniKeys = 0;
+  let bossUnlocked = false; // V19: đã mở khóa vĩnh viễn chế độ Đánh Boss (lưu localStorage)
+  let bossMode = false;     // true khi đang trong trận Đánh Boss (không tính điểm mét)
+  const BOSS_SKILL_MULT = 0.5; // Trận Boss: thời gian duy trì kỹ năng của mọi nhân vật giảm 50%
+  let questData = null;
+  let challengeData = null; // V20.1: Thử thách 3 ngày (lưu localStorage 'duyMapChayDiChallenge')
+  let runItems = { shield: false, magnet: false, hourglass: false, duration: false };
+  let hourglassRun = false;
+  let durationRun = false;
+  let runSkillCount = 0;
+  let runBusHits = 0;
+  let sliceFX = [];
+  let slashFX = [];
+  const NINJA_REACH = 150; // tầm chém phía trước nhân vật (px)
+  try {
+    coinBalance = Math.max(0, Number(localStorage.getItem('duyMapChayDiCoins') || 0));
+    const savedUpgrades = JSON.parse(localStorage.getItem('duyMapChayDiUpgrades') || '{}');
+    for (const key of Object.keys(upgrades)) upgrades[key] = Math.max(1, Math.min(4, Number(savedUpgrades[key]) || 1));
+  } catch (_) { /* local storage may be unavailable */ }
+
+  function saveEconomy() {
+    try {
+      localStorage.setItem('duyMapChayDiCoins', String(coinBalance));
+      localStorage.setItem('duyMapChayDiUpgrades', JSON.stringify(upgrades));
+    } catch (_) { /* local storage may be unavailable */ }
+  }
+  function skillInterval(key = selectedCharacter) {
+    const lv = upgrades[key] || 1;
+    let value;
+    if (key === 'tien') value = tienSkinOn('tien') ? (lv >= 2 ? 44 : 50) : 0; // Tiến gốc: Nhảy kép không hồi chiêu
+    else if (key === 'toduy') value = lv >= 2 ? 22 : 25;
+    else if (key === 'duyquandoi') value = lv >= 2 ? 33 : 38;
+    else if (key === 'trieu') value = (lv >= 2 ? 31 : 36) - (score >= 4000 ? 3 : score >= 2000 ? 1 : 0);
+    else if (key === 'tan') value = lv >= 2 ? 24 : 27; // V22: Ném chổi — hồi chiêu 27s, Lv2 còn 24s
+    else if (key === 'phat') value = 0; // V23: Phát không có hồi chiêu theo thời gian (tích Nộ)
+    else if (key === 'onghai') value = lv >= 2 ? 27 : 30;
+    else if (key === 'quang') value = lv >= 2 ? 12.5 : 15;
+    else if (key === 'trong') value = lv >= 2 ? 35 : 40;
+    else value = lv >= 2 ? 30 : 36;
+    // Vật phẩm giảm hồi chiêu: giảm 15% thời gian hồi trong các màn có hiệu lực (chỉ khi đang chạy).
+    if (state === 'running' && hourglassRun && key === selectedCharacter) value = Math.round(value * 0.85 * 10) / 10;
+    if (key === 'quang' && state === 'running' && quangPassiveBoost) value = Math.round(value * 0.85 * 10) / 10;
+    return value;
+  }
+  function skillDuration(key = selectedCharacter) {
+    const lv = upgrades[key] || 1;
+    let value;
+    if (key === 'tien') value = tienSkinOn('tien') ? (lv >= 3 ? 25 : 22) : 0;
+    else if (key === 'toduy') value = lv >= 3 ? 12 : 8;
+    else if (key === 'duyquandoi') value = lv >= 3 ? 19 : 16;
+    else if (key === 'trieu') value = (lv >= 3 ? 17 : 14) + (score >= 5000 ? 2 : score >= 3000 ? 1 : 0);
+    else if (key === 'tan') value = lv >= 3 ? 15 : 13; // V22: Ném chổi — duy trì 13s, Lv3 lên 15s
+    else if (key === 'phat') value = lv >= 3 ? 13 : 10; // V23: Tích Nộ Quyền — duy trì 10s, Lv3 lên 13s
+    else if (key === 'onghai') value = lv >= 3 ? 17 : 15;
+    else if (key === 'quang') value = lv >= 3 ? 4.5 : 3.5;
+    else {
+      const base = key === 'duy' ? 12 : 15;
+      value = lv >= 3 ? (key === 'duy' ? 15 : 18) : base;
+    }
+    // Vật phẩm 🔋: +15% thời gian duy trì kỹ năng trong màn chơi có hiệu lực (làm tròn 1 chữ số thập phân).
+    if (state === 'running' && durationRun && key === selectedCharacter) value = Math.round(value * 1.15 * 10) / 10;
+    // V19: trong trận Đánh Boss, thời gian duy trì của tất cả nhân vật giảm 50%.
+    if (state === 'running' && bossMode) value = Math.round(value * BOSS_SKILL_MULT * 10) / 10;
+    return value;
+  }
+
+  // ---------- Lưu trữ localStorage cho dữ liệu mới ----------
+  const achv = { claimed: [], totalMeters: 0, totalGacha: 0, totalBusHits: 0 };
+  const LS = {
+    crystals: 'duyMapChayDiCrystals',
+    owned: 'duyMapChayDiOwned',
+    items: 'duyMapChayDiItems',
+    achv: 'duyMapChayDiAchv',
+    seenVersion: 'duyMapChayDiSeenVersion',
+    keys: 'duyMapChayDiKeys',
+    quests: 'duyMapChayDiQuests',
+    challenge: 'duyMapChayDiChallenge',
+    shop: 'duyMapChayDiShop',
+    boss: 'duyMapChayDiBossUnlocked',
+    skin: 'duyMapChayDiSkin'
+  };
+  function lsRead(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw == null ? fallback : JSON.parse(raw);
+    } catch (_) { return fallback; }
+  }
+  function lsWrite(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* storage may be unavailable */ }
+  }
+  const toCount = (v, max = Infinity) => Math.min(max, Math.max(0, Math.floor(Number(v)) || 0));
+  function loadMeta() {
+    crystals = toCount(lsRead(LS.crystals, 0));
+    const ownedSaved = lsRead(LS.owned, {}) || {};
+    owned.toduy = !!ownedSaved.toduy;
+    owned.duyquandoi = !!ownedSaved.duyquandoi;
+    owned.trieu = !!ownedSaved.trieu;
+    owned.tan = !!ownedSaved.tan;
+    owned.phat = !!ownedSaved.phat;
+    owned.onghai = !!ownedSaved.onghai;
+    owned.tien = !!ownedSaved.tien;
+    owned.quang = !!ownedSaved.quang;
+    owned.tienSkin = !!ownedSaved.tienSkin && owned.tien;
+    const skinSaved = lsRead(LS.skin, {}) || {};
+    equippedSkin.tien = !!skinSaved.tien && owned.tienSkin;
+    const items = lsRead(LS.items, {}) || {};
+    inventory.shield = toCount(items.shield);
+    inventory.magnet = toCount(items.magnet);
+    inventory.hourglass = toCount(items.hourglass);
+    inventory.duration = toCount(items.duration);
+    // V17: vật phẩm giảm hồi chiêu chỉ còn 1 màn. Lượt còn dở của bản cũ được đổi thành 1 vật phẩm.
+    if (toCount(items.hourglassCharges) > 0) inventory.hourglass++;
+    const eq = items.equipped || {};
+    equipped.shield = !!eq.shield;
+    equipped.magnet = !!eq.magnet;
+    equipped.hourglass = !!eq.hourglass;
+    equipped.duration = !!eq.duration;
+    miniKeys = toCount(lsRead(LS.keys, 0), 3);
+    bossUnlocked = lsRead(LS.boss, false) === true;
+    const av = lsRead(LS.achv, {}) || {};
+    achv.claimed = Array.isArray(av.claimed) ? av.claimed.filter(id => typeof id === 'string') : [];
+    achv.totalMeters = toCount(av.totalMeters);
+    achv.totalGacha = toCount(av.totalGacha);
+    achv.totalBusHits = toCount(av.totalBusHits);
+  }
+  function saveAchv() { lsWrite(LS.achv, achv); }
+  function saveMeta() {
+    lsWrite(LS.crystals, crystals);
+    lsWrite(LS.owned, owned);
+    lsWrite(LS.skin, equippedSkin);
+    lsWrite(LS.items, { ...inventory, equipped });
+    lsWrite(LS.keys, miniKeys);
+    lsWrite(LS.boss, bossUnlocked);
+  }
+  loadMeta();
+
+  // ---------- Sảnh: thông tin nhân vật đang chọn ----------
+  function updateLobby() {
+    lobbyCoin.textContent = fmt(coinBalance);
+    lobbyBest.textContent = formatScore(best);
+    refreshCurrencies();
+    updateMiniButton();
+    updateEquipStrip();
+    updateQuestDot();
+    updateChallengeButton();
+    const info = upgradeShowcaseInfo[selectedCharacter];
+    heroName.textContent = charName(selectedCharacter);
+    heroLevel.textContent = `LV ${upgrades[selectedCharacter]}`;
+    heroSkill.textContent = `✦ ${charSkillName(selectedCharacter)}`;
+    const trioOn = tienSkinOn('tien') && selectedCharacter === 'tien';
+    const heroMarkup = trioOn
+      ? '<img src="assets/trong-set.png" alt=""><img src="assets/tien.png" alt=""><img src="assets/nhan-vat.png" alt="">'
+      : `<img src="${info.image}" alt="">`;
+    const heroState = `${trioOn ? 'trio' : 'single'}-${info.image}`;
+    if (heroSprite.dataset.visual !== heroState) {
+      heroSprite.innerHTML = heroMarkup;
+      heroSprite.dataset.visual = heroState;
+      heroSprite.classList.toggle('is-trio', trioOn);
+      heroSprite.setAttribute('aria-label', charName(selectedCharacter));
+      heroSprite.classList.remove('is-swap');
+      void heroSprite.offsetWidth;
+      heroSprite.classList.add('is-swap');
+    }
+  }
+
+  // ---------- Popup: 3 thẻ nhân vật (chọn + nâng cấp) ----------
+  function renderCharacterCards() {
+    modalCoin.textContent = fmt(coinBalance);
+    const keepScroll = cardRow.scrollLeft;
+    const unlockedMuRat = isMuRatUnlocked();
+    cardRow.innerHTML = Object.keys(characters).map((key) => {
+      const cfg = upgradeConfig[key];
+      const info = upgradeShowcaseInfo[key];
+      const lv = upgrades[key];
+      const locked = !isCharUnlocked(key);
+      const selected = selectedCharacter === key;
+      if (locked) {
+        const isMuRat = key === 'murat';
+        const pct = Math.min(100, Math.round(best / 3333 * 100));
+        const lockText = isMuRat
+          ? `Đạt <b>3.333 điểm</b> trong một ván để mở khóa.<br>Kỷ lục của bạn: ${fmt(best)}`
+          : (key === 'tien'
+            ? `Mua vĩnh viễn tại <b>Shop → Đặc Biệt</b>.<br>Giá 🪙 ${fmt(TIEN_PRICE)} (chỉ mua 1 lần).`
+            : key === 'quang'
+              ? `Mua vĩnh viễn tại <b>Shop → Đặc Biệt</b>.<br>Giá 🪙 ${fmt(QUANG_PRICE)} (chỉ mua 1 lần).`
+              : `Mở khóa vĩnh viễn từ <b>Gacha</b>.<br>2,5% ra ${cfg.name} mỗi hộp.`);
+        return `<article class="char-card is-locked" data-key="${key}">
+          <div class="card-art"><img src="${info.image}" alt="Nhân vật chưa mở khóa"><span class="lock-mark" aria-hidden="true">🔒</span><span class="card-tag">KHÓA</span></div>
+          <h3 class="card-name">${cfg.name}</h3>
+          <p class="card-skill">✦ ${info.skill}</p>
+          <p class="card-lock-text">${lockText}</p>
+          ${isMuRat ? `<div class="lock-progress" aria-label="Tiến độ mở khóa"><i style="width:${pct}%"></i></div>` : ''}
+          <div class="card-actions"><button class="card-btn select" type="button" disabled>🔒 CHƯA MỞ KHÓA</button></div>
+        </article>`;
+      }
+      const next = cfg.levels[lv - 1]; // thông tin cấp tiếp theo (lv + 1)
+      const skinOn = tienSkinOn(key);
+      const timed = hasTimedSkill(key);
+      const isPhat = key === 'phat';
+      const cdText = isPhat ? `${phatNeed()} NỘ` : (timed ? `${skillInterval(key)}s` : '—');
+      const durText = isPhat ? `${skillDuration(key)}s` : (timed ? `${skillDuration(key)}s` : '+1 NHẢY');
+      const pips = [1, 2, 3, 4].map(n => `<i class="pip ${n <= lv ? 'on' : ''}"></i>`).join('') + '<i class="pip soon" title="Level 5 · Coming Soon"></i>';
+      let upgradeBtn;
+      if (!next) {
+        upgradeBtn = `<button class="card-btn upgrade maxed" type="button" disabled>✓ ĐÃ TỐI ĐA</button>`;
+      } else {
+        const affordable = coinBalance >= next.cost;
+        upgradeBtn = `<button class="card-btn upgrade" type="button" data-upgrade="${key}" ${affordable ? '' : 'disabled'} title="${affordable ? '' : 'Chưa đủ Coin'}">NÂNG CẤP LV${lv + 1} <span class="cost">🪙 ${fmt(next.cost)}</span></button>`;
+      }
+      return `<article class="char-card ${selected ? 'is-selected' : ''}" data-key="${key}">
+        <div class="card-art">${skinOn ? '<div class="trio-art"><img src="assets/trong-set.png" alt="Trọng Sét"><img src="assets/tien.png" alt="Tiến"><img src="assets/nhan-vat.png" alt="Duy"></div>' : `<img src="${info.image}" alt="${cfg.name}">`}<span class="card-lv px">LV ${lv}</span></div>
+        <h3 class="card-name">${charName(key)}</h3>
+        <p class="card-skill">✦ ${charSkillName(key)}</p>
+        <div class="card-stats">
+          <div class="card-stat"><span>${isPhat ? 'NỘ CẦN' : 'HỒI CHIÊU'}</span><b>${cdText}</b></div>
+          <div class="card-stat"><span>KỸ NĂNG</span><b>${durText}</b></div>
+          <div class="card-stat"><span>GIÁP</span><b>+${lv >= 4 ? 1 : 0}</b></div>
+        </div>
+        <div class="pips" aria-label="Cấp ${lv} trên 4">${pips}</div>
+        <p class="card-next">${next ? `<b>LV${lv + 1}: ${next.title}</b><br>${next.desc}` : '<b>Đã đạt cấp cao nhất</b><br>Level 5 · Coming Soon'}</p>
+        <div class="card-actions">
+          <button class="card-btn select ${selected ? 'is-on' : ''}" type="button" data-select="${key}" ${selected ? 'disabled' : ''}>${selected ? '✓ ĐANG CHỌN' : 'CHỌN'}</button>
+          ${upgradeBtn}
+          ${key === 'tien' && owned.tienSkin ? `<button class="card-btn skin ${skinOn ? 'is-on' : ''}" type="button" data-skin="tien">${skinOn ? '✓ ĐANG MẶC · THÁO SKIN' : '🎽 MẶC SKIN TIẾN TRỌNG DUY'}</button>` : ''}
+        </div>
+      </article>`;
+    }).join('');
+    cardRow.scrollLeft = keepScroll;
+  }
+  cardRow.addEventListener('click', (event) => {
+    const selectBtn = event.target.closest('[data-select]');
+    const upgradeBtn = event.target.closest('[data-upgrade]');
+    const skinBtn = event.target.closest('[data-skin]');
+    if (skinBtn && !skinBtn.disabled) {
+      // Mặc / Tháo skin Tiến Trọng Duy (chỉ đổi được ngoài trận chạy)
+      if (state === 'running' || skinBtn.dataset.skin !== 'tien' || !owned.tienSkin) return;
+      equippedSkin.tien = !equippedSkin.tien;
+      saveMeta();
+      updateLobby();
+      renderCharacterCards();
+      playUiSound('select');
+      showToast(equippedSkin.tien ? 'ĐÃ MẶC SKIN TIẾN TRỌNG DUY: Anh em “Sét” đi cùng, vẫn giữ Nhảy kép.' : 'ĐÃ THÁO SKIN: Tiến dùng lại Nhảy kép.');
+    } else if (selectBtn && !selectBtn.disabled) {
+      if (state !== 'running') loadCharacter(selectBtn.dataset.select);
+    } else if (upgradeBtn && !upgradeBtn.disabled) {
+      const key = upgradeBtn.dataset.upgrade;
+      const lv = upgrades[key];
+      const item = upgradeConfig[key].levels[lv - 1];
+      if (!item || coinBalance < item.cost) return;
+      coinBalance -= item.cost;
+      upgrades[key] = lv + 1;
+      saveEconomy();
+      updateLobby();
+      renderCharacterCards();
+      playTone(660, 0.1, 'triangle', 0.035);
+    }
+  });
+
+  // ---------- Popup: Hướng dẫn / Thành tựu ----------
+  function achievementList() {
+    const roster = Object.keys(upgrades);
+    const maxLv = Math.max(...roster.map(k => upgrades[k]));
+    const atLv4 = roster.filter(k => upgrades[k] >= 4).length;
+    return [
+      { id: 'a1', icon: '🏃', title: 'Khởi động', desc: 'Đạt 500 điểm trong một ván', cur: best, goal: 500, reward: 5 },
+      { id: 'a2', icon: '🏜️', title: 'Nghìn dặm', desc: 'Đạt 1.000 điểm trong một ván', cur: best, goal: 1000, reward: 10 },
+      { id: 'a3', icon: '🏙️', title: 'Vào thành phố', desc: 'Chạm tới map City ở 3.000 điểm', cur: best, goal: 3000, reward: 15 },
+      { id: 'a4', icon: '👻', title: 'Triệu hồi Mu Rát', desc: 'Đạt 3.333 điểm để mở khóa Mu Rát', cur: best, goal: 3333, reward: 15 },
+      { id: 'a5', icon: '🔥', title: 'Bá chủ đường phố', desc: 'Đạt 6.000 điểm trong một ván', cur: best, goal: 6000, reward: 25 },
+      { id: 'a6', icon: '⚡', title: 'Lên đời', desc: 'Nâng một nhân vật lên Lv2', cur: maxLv, goal: 2, reward: 10 },
+      { id: 'a7', icon: '🛡️', title: 'Cứng cáp', desc: 'Nâng một nhân vật lên Lv4 để có Giáp', cur: maxLv, goal: 4, reward: 15 },
+      { id: 'a8', icon: '👑', title: 'Đội hình tối thượng', desc: 'Nâng đủ 5 nhân vật bất kỳ lên Lv4', cur: Math.min(atLv4, 5), goal: 5, reward: 30 },
+      { id: 'a9', icon: '🎁', title: 'Thợ săn kho báu', desc: 'Mở tổng cộng 5 hộp Gacha', cur: achv.totalGacha, goal: 5, reward: 15 },
+      { id: 'a10', icon: '🛣️', title: 'Người chạy bền bỉ', desc: 'Chạy tích lũy tổng 20.000m qua mọi ván', cur: achv.totalMeters, goal: 20000, reward: 20 },
+      { id: 'a11', icon: '🚌', title: 'Tài xế hung thần', desc: 'Tông trúng xe buýt tổng cộng 15 lần', cur: achv.totalBusHits, goal: 15, reward: 10 }
+    ];
+  }
+  function renderAchievements() {
+    achvList.innerHTML = achievementList().map((a) => {
+      const done = a.cur >= a.goal;
+      const claimed = achv.claimed.includes(a.id);
+      const pct = Math.min(100, Math.round(a.cur / a.goal * 100));
+      let stateHtml;
+      if (claimed) stateHtml = '<span class="achv-state is-claimed">✓ ĐÃ NHẬN</span>';
+      else if (done) stateHtml = `<button class="card-btn upgrade achv-claim" type="button" data-achv-claim="${a.id}">NHẬN 💎 ${a.reward}</button>`;
+      else stateHtml = `<span class="achv-state">${fmt(Math.min(a.cur, a.goal))}/${fmt(a.goal)}<br>💎 ${a.reward}</span>`;
+      return `<div class="achv ${done ? 'done' : ''} ${claimed ? 'claimed' : ''}">
+        <span class="achv-ico" aria-hidden="true">${a.icon}</span>
+        <div><strong>${a.title}</strong><p>${a.desc}</p><div class="achv-bar"><i style="width:${pct}%"></i></div></div>
+        ${stateHtml}
+      </div>`;
+    }).join('');
+  }
+  achvList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-achv-claim]');
+    if (!btn || btn.disabled) return;
+    const a = achievementList().find(x => x.id === btn.dataset.achvClaim);
+    if (!a || a.cur < a.goal || achv.claimed.includes(a.id)) return;
+    achv.claimed.push(a.id);
+    crystals += a.reward;
+    saveAchv();
+    saveMeta();
+    playUiSound('claim');
+    refreshCurrencies();
+    updateLobby();
+    renderAchievements();
+    showToast(`ĐÃ NHẬN 💎 ${a.reward} — ${a.title}`);
+  });
+
+  // ---------- Quản lý popup & màn hình ----------
+  let activeModal = null;
+  let modalOpener = null;
+  function openModal(el, opener) {
+    closeModal();
+    activeModal = el;
+    modalOpener = opener || null;
+    el.hidden = false;
+    const closeBtn = el.querySelector('.close-btn');
+    if (closeBtn) closeBtn.focus({ preventScroll: true });
+  }
+  function closeModal() {
+    if (!activeModal) return;
+    activeModal.hidden = true;
+    activeModal = null;
+    modalOpener = null;
+    // Bỏ focus để phím Space ở sảnh luôn là "CHƠI NGAY" thay vì mở lại popup
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+  document.querySelectorAll('.modal').forEach((modal) => modal.addEventListener('click', (event) => {
+    if (event.target.closest('[data-close]')) closeModal();
+  }));
+    function showScreen(name) {
+    const isPlaying = name === 'game';
+    lobbyScreen.classList.toggle('is-active', name === 'lobby');
+    gameScreen.classList.toggle('is-active', isPlaying);
+
+    // Tìm và ẩn mọi nút có chữ "Sao lưu" khi vào trận, hiện lại khi về sảnh
+    document.querySelectorAll('button, a, div[role="button"]').forEach((el) => {
+      if (el.textContent && el.textContent.trim().includes('Sao lưu')) {
+        el.style.display = isPlaying ? 'none' : '';
+      }
+    });
+    }
+  
+  function openCharacterModal() { renderCharacterCards(); openModal(characterModal, openCharactersBtn); }
+  function openHelpModal() {
+    openModal(helpModal, openHelpBtn);
+  }
+  // ---------- News: bảng tin cập nhật ----------
+  const NEWS_POSTS = [
+    {
+      version: 'V24.1', title: 'Chào Mừng 20/11 · Tiến Trọng Duy Nhảy Kép · Bot Ghép Trận', date: '19/11/2026',
+      items: [
+        'Ra mắt <b>Sự kiện 4 ngày chào mừng Ngày Nhà Giáo Việt Nam 20/11</b> 🎓: hoàn thành nhiệm vụ Day 1–3 (Day 4 cày bù) để thu thập điểm <b>💯</b> và đổi tới <b>💎 300 Crystal</b>, Key Mini-game cùng nhiều Coin.',
+        'Sự kiện cộng đồng <b>67.000 điểm</b> trước đó vẫn được giữ lại ở tab riêng trong mục Sự Kiện để người chơi nhận bù các mốc thưởng đã đạt sau khi kết thúc.',
+        'Nâng cấp Skin <b>Tiến Trọng Duy</b>: giữ nguyên kỹ năng chủ động <b>Nhảy kép</b> (kèm hiệu ứng Lv2, Lv3) song song với chiêu <i>Anh em “Sét”</i>.',
+        'Thêm hệ thống <b>Bot NPC tự động ghép trận sau 15 giây</b> chờ ở cả hai chế độ <b>Racing</b> và <b>Solo 1v1</b>, giúp vào trận ngay cả khi vắng người.'
+      ]
+    },
+    {
+      version: 'V24', title: 'Ông Hai · Lào Thủ Tu Tiên', date: '19/11/2026',
+      items: [
+        'Nhân vật Gacha thứ sáu <b>Ông Hai</b> 🚬 với kỹ năng tự kích hoạt <i>LÀO THỦ TU TIÊN</i>: hồi 30s, bay trên điếu cày 15s, <b>miễn nhiễm 100%</b> và nhả vòng khói hất văng vật cản tầm trung/cao.',
+        'Cuối chiêu quay ngẫu nhiên: <b>60% Êm ái</b> (hồi chiêu -15%) · <b>30% Say thuốc tu tiên</b> (+5–12s bay, khói vàng) · <b>10% Tắt điếu</b> (hạ cánh thường).',
+        'Nâng cấp: Lv2 400 Coin hồi 30→27s; Lv3 1.000 Coin bay 15→17s; Lv4 1.600 Coin +1 giáp đầu trận.',
+        'Tỷ lệ Gacha nhóm nhân vật 15% chia đều cho 6 nhân vật: <b>2,5% mỗi người</b>.'
+      ]
+    },
+    {
+      version: 'V23', title: 'Phát · Hoàng Hôn · Biển Hiệu Mới', date: '18/11/2026',
+      items: [
+        'Nhân vật Gacha thứ năm <b>Phát</b> ⚡ với kỹ năng chủ động <i>TÍCH NỘ QUYỀN</i>: thanh kỹ năng không chạy theo thời gian mà nạp Nộ khi <b>vượt chướng ngại vật (+10)</b>, né đạn / tên lửa Boss (+10) và mỗi <b>250m (+10)</b> (hiện chữ C₆H₁₂O₆).',
+        'Đủ Nộ thì bấm nút kích hoạt trên màn hình (hoặc phím <b>E / S</b>); nếu lỡ va chạm lúc đang đầy Nộ, kỹ năng tự bật để cứu nguy. Đang bật chiêu thì không tích thêm Nộ.',
+        'Kỹ năng kéo dài 13 giây, <b>miễn nhiễm va chạm 100%</b> và quay ngẫu nhiên: <b>50% ∫ f(x)dx</b> (lấp hố nước, xóa vật cản tầm thấp) · <b>30% C₁₂H₂₂O₁₁</b> (×2 Coin, không ×2 điểm) · <b>20% P = 0.2</b> (vật cản → +35 Coin/vật, hồi +1 giáp tối đa bằng giáp đầu trận).',
+        'Nâng cấp Phát: Lv2 400 Coin giảm Nộ cần từ 100 xuống 85; Lv3 1.000 Coin duy trì 13→16 giây; Lv4 1.600 Coin thêm 1 giáp đầu trận.',
+        'Tỷ lệ Gacha nhóm nhân vật 15% chia đều cho 5 nhân vật: <b>3% Tô Duy · Duy Quân đội · Triều · Tân · Phát</b>.',
+        '<b>Lộ trình map</b> 3.000m → 6.000m → 10.000m được bốc thăm sẵn từ đầu ván. Thêm <b>Bãi Biển Hoàng Hôn</b> 🌅: trời cam tím, mặt trời hạ thấp, nhịp độ nhanh hơn một chút.',
+        'Cân bằng Bãi Biển: vật cản ra dày hơn một chút, hố nước rộng hơn. Biển hiệu có 3 loại: <b>treo cao</b> (chạy dưới), <b>cắm sát đất</b> (nhảy qua) và <b>treo tầm giữa</b> — khi bạn lại gần sẽ trượt lên cao hoặc sập xuống đất theo mũi tên cảnh báo!'
+      ]
+    },
+    {
+      version: 'V22', title: 'Bãi Biển · Tân · Sự Kiện Toàn Cầu', date: '17/11/2026',
+      items: [
+        'Ra mắt <b>Map Bãi Biển</b> 🏖️: đạt 3.000 điểm, game chọn ngẫu nhiên 50/50 giữa <b>Map City</b> và <b>Map Bãi Biển</b>.',
+        'Bãi Biển có <b>hố nước</b> cắt ngang mặt đường (nhỏ và lớn, viền bọt sóng): phải nhảy qua, rơi xuống nước sẽ mất giáp bảo hộ (nảy lên) hoặc thua. Kỹ năng miễn nhiễm vẫn đi qua an toàn.',
+        'Thêm <b>dù che nắng</b> (nhảy qua) và <b>biển hiệu lớn treo cao</b>: chạy bên dưới thì an toàn, nhưng nhảy lên sẽ đụng bảng!',
+        'Nhân vật Gacha thứ tư <b>Tân</b> 🧹 với kỹ năng tự kích hoạt <i>NÉM CHỔI</i>: miễn nhiễm va chạm và liên tục ném chổi xoay hất văng mọi chướng ngại, kể cả tên lửa Boss.',
+        'Tân: hồi chiêu 27 giây · duy trì 13 giây. Lv2 400 Coin hồi chiêu 27→24 giây; Lv3 1.000 Coin duy trì 13→15 giây; Lv4 1.600 Coin thêm 1 giáp.',
+        'Tỷ lệ Gacha nhóm nhân vật 15% chia đều cho 4 nhân vật: <b>3,75% Tô Duy · Duy Quân đội · Triều · Tân</b> (trùng hoàn 💎 10).',
+        '<b>🎉 Sự kiện cộng đồng toàn cầu 3 ngày</b>: cả server cùng chạy đến <b>67.000 điểm</b>, nhận Crystal / Key theo 6 mốc. Cần kỷ lục từ 1.000 điểm để tham gia.',
+        'Giftcode mới <b>tannoprime</b>: 💎 35 + 🪙 600. Giftcode giờ còn đọc được từ Firebase nên có thể thêm mã nóng bất cứ lúc nào.',
+        'Gọn gàng hơn: sảnh chỉ còn 8 nút. <b>Nhiệm vụ</b> gộp Hằng ngày · Thử thách · Thành tựu; <b>Shop</b> gộp thêm Túi đồ; <b>News</b> gộp thêm Giftcode.',
+        'Giao diện nâng cấp của Triều và Tân đổi sang tông đỏ giống Tô Duy &amp; Duy Quân đội.'
+      ]
+    },
+    {
+      version: 'V21', title: 'Triều — Vua Lý Thuyết', date: '16/11/2026',
+      items: [
+        'Giảm giá mở khóa nhân vật <b>Tiến</b> tại Shop → Đặc Biệt từ 🪙 15.000 còn <b>🪙 10.000 Coin</b>.',
+        'Ra mắt nhân vật Gacha thứ ba <b>Triều</b> 👑 với kỹ năng tự kích hoạt <i>VUA LÝ THUYẾT</i>; sở hữu vĩnh viễn sau khi quay trúng, trùng nhân vật hoàn <b>💎 10 Crystal</b>.',
+        'Tỷ lệ nhóm nhân vật Gacha 15% được chia đều: <b>5% Tô Duy · 5% Duy Quân đội · 5% Triều</b>. Tỷ lệ Key Mini-game vẫn là 5%.',
+        'Nâng cấp Triều: Lv2 400 Coin giảm hồi chiêu 36→31 giây; Lv3 1.000 Coin tăng duy trì 14→17 giây; Lv4 1.600 Coin thêm 1 giáp.',
+        'Nội tại theo điểm: 2.000 điểm hồi chiêu -1 giây; 3.000 điểm duy trì +1 giây; 4.000 điểm hồi chiêu -2 giây; 5.000 điểm duy trì +1 giây.',
+        'Chữ <b>VUA LÝ THUYẾT</b> tiến hóa màu sắc/kích cỡ theo điểm và hất văng chướng ngại vật, kể cả tên lửa Boss, trong thời gian kỹ năng.'
+      ]
+    },
+    {
+      version: 'V20.1', title: 'Thử Thách 3 Ngày', date: '15/11/2026',
+      items: [
+        'Ra mắt tính năng <b>Thử Thách 🎯</b> ngay tại sảnh: mở khóa khi đạt kỷ lục <b>1.000 điểm</b>.',
+        'Mỗi đợt có <b>2 thử thách ngẫu nhiên</b> (không trùng loại), tự làm mới sau <b>mỗi 3 ngày</b> — popup hiển thị đếm ngược.',
+        'Hoàn thành để nhận <b>💎 Crystal</b> (15–30 💎): đạt điểm với Duy / Trọng “Sét”, săn Coin, chạy đường dài, ra trận với đủ 4 vật phẩm…',
+        'Thử thách <b>Độc cô cầu bại</b> chỉ xuất hiện khi đã mở khóa Boss: hạ Xe Tăng không dùng vật phẩm hỗ trợ và không mất tim nào.',
+        'Chấm đỏ trên nút Thử Thách báo khi có phần thưởng chưa nhận.'
+      ]
+    },
+    {
+      version: 'V20', title: 'Bảng Xếp Hạng Thế Giới', date: '15/11/2026',
+      items: [
+        'Ra mắt <b>Bảng xếp hạng thế giới</b> 🏆 tích hợp Firebase, kèm dàn NPC thử thách.',
+        'Tối ưu hiển thị đội hình 3 người cho Skin <b>Tiến Trọng Duy</b>: cả ba luôn chạy cùng nhau từ đầu trận.',
+        'Ra mắt nhân vật thứ 6 <b>Tiến</b>, bán vĩnh viễn tại <b>Shop → Đặc Biệt</b> (🪙 15.000) với kỹ năng chủ động <i>Nhảy kép</i>: bấm nhảy thêm 1 lần trên không, hồi lại khi chạm đất, nóc xe hoặc giàn giáo.',
+        'Skin <b>Tiến Trọng Duy</b> bán tại <b>Shop → Cao Cấp</b> (💎 20 hoặc 🪙 7.500, cần có Tiến): kỹ năng <i>Anh em “Sét”</i> triệu hồi Duy &amp; Trọng “Sét” chạy cùng, miễn nhiễm va chạm và phóng sét phá chướng ngại.',
+        'Mặc / Tháo skin ngay tại thẻ Tiến trong <b>Nhân vật &amp; Nâng cấp</b>; Tiến nâng cấp Lv2–Lv4 với tổng 🪙 3.000.',
+        '<b>Boss Xe Tăng khó hơn</b>: đạn pháo &amp; tên lửa nhanh hơn, ra chiêu dồn dập, bắn loạt 2–3 tên lửa so le độ cao.',
+        'Phase 2 xuất hiện <b>giàn giáo</b> kèm đòn quét sát đất buộc nhảy lên cao; thưởng hòm bom 💣 ở cuối giàn giáo.',
+        'Thành tựu <b>Đội hình tối thượng</b> cố định: nâng đủ 5 nhân vật bất kỳ lên Lv4.'
+      ]
+    },
+    {
+      version: 'V19', title: 'Đại Chiến Xe Tăng', date: '13/11/2026',
+      items: [
+        'Mini-game thay “Sắp ra mắt” bằng chế độ <b>Đánh Boss Xe Tăng</b>: thu thập 3/3 Key để mở khóa vĩnh viễn.',
+        'Từ các lượt sau, mỗi lần khiêu chiến tốn <b>🔑 1 Key</b> hoặc <b>💎 15 Crystal</b>.',
+        'Lụm hòm 🚀💣 trên đường để phản công, né đạn theo laser đỏ. Boss dưới 50% máu sẽ <b>nổi giận</b>.',
+        'Hạ gục Boss nhận <b>💎 45</b> + thưởng thêm; thua vẫn có thưởng an ủi theo % máu Boss đã rút.',
+        'Gacha: đang giữ đủ 3 Key mà ra thêm Key sẽ được đền bù <b>💎 15</b>.',
+        'Giao diện <b>Duy Quân đội</b> đổi sang tông đỏ giống Tô Duy (cùng là nhân vật Gacha).'
+      ]
+    },
+    {
+      version: 'V18', title: 'Tiểu Đội Chi Viện', date: '12/11/2026',
+      items: [
+        'Ra mắt nhân vật mới <b>Duy Quân đội</b> trong Gacha với kỹ năng <i>Chi Viện</i>: gọi 2 Duy Hành quân bao kê.',
+        'Thêm vật phẩm mới <b>🔋 Tăng 15% thời gian duy trì kỹ năng</b> trong Shop &amp; Gacha.',
+        'Vật phẩm <b>×2 Coin</b> giảm giá còn <b>600 Coin</b> trong Shop.',
+        'Mở rộng hệ thống <b>Thành tựu</b> với 11 mốc thử thách và phần thưởng <b>Crystal 💎</b>.',
+        'Tối ưu hiển thị toàn màn hình trên điện thoại và ra mắt bảng tin <b>News</b>.'
+      ]
+    }
+  ];
+  const NEWS_LATEST = NEWS_POSTS[0].version;
+  const newsModal = $('newsModal');
+  const newsList = $('newsList');
+  const openNewsBtn = $('openNews');
+  const newsDot = $('newsDot');
+  function updateNewsDot() { if (newsDot) newsDot.hidden = lsRead(LS.seenVersion, '') === NEWS_LATEST; }
+  function renderNews() {
+    newsList.innerHTML = NEWS_POSTS.map((p, i) => `<article class="news-post ${i === 0 ? 'is-latest' : ''}">
+        <header><span class="news-ver px">${p.version}</span><div><strong>${p.title}</strong><small>${p.date}${i === 0 ? ' · MỚI NHẤT' : ''}</small></div></header>
+        <ul>${p.items.map(t => `<li>${t}</li>`).join('')}</ul>
+      </article>`).join('');
+  }
+  // V22: popup News có 2 tab — Bảng tin / Giftcode (giao diện Giftcode do league.js dựng vào #giftPane)
+  function selectNewsTab(name) {
+    document.querySelectorAll('#newsModal [data-ntab]').forEach(t => t.classList.toggle('is-selected', t.dataset.ntab === name));
+    $('newsPane').hidden = name !== 'news';
+    $('giftPane').hidden = name !== 'gift';
+  }
+  function openNewsModal(tab = 'news') {
+    renderNews();
+    openModal(newsModal, openNewsBtn);
+    selectNewsTab(tab);
+    lsWrite(LS.seenVersion, NEWS_LATEST);
+    updateNewsDot();
+  }
+  document.querySelectorAll('#newsModal [data-ntab]').forEach(t => t.addEventListener('click', () => selectNewsTab(t.dataset.ntab)));
+  openNewsBtn.addEventListener('click', () => openNewsModal());
+
+  // ================= BẢNG XẾP HẠNG THẾ GIỚI (Firebase Realtime Database) =================
+  const FIREBASE_CONFIG = {
+    apiKey: 'AIzaSyBcLojXrplp7nhTsG4w_Jt_e4t7_yVVnBA',
+    authDomain: 'duy-map-chay-di.firebaseapp.com',
+    databaseURL: 'https://duy-map-chay-di-default-rtdb.asia-southeast1.firebasedatabase.app',
+    projectId: 'duy-map-chay-di',
+    storageBucket: 'duy-map-chay-di.firebasestorage.app',
+    messagingSenderId: '122497729882',
+    appId: '1:122497729882:web:e5494121869a59682e9f63'
+  };
+  const LB_KEY_UID = 'duyMapChayDiUid';
+  const LB_KEY_NAME = 'duyMapChayDiName';
+  const LB_TOP = 15;
+  const LB_NPCS = [
+    { id: 'npc_ong_duy_chan_pa', name: 'Ông Duy Chan Pa', score: 333, character: 'Duy' },
+    { id: 'npc_viet_quat', name: 'Việt quất', score: 3636, character: 'Mu Rát' },
+    { id: 'npc_t_burh_tv', name: 'T Burh TV', score: 200, character: 'Trọng “Sét”' }
+  ];
+  const LB_MEDALS = ['🥇', '🥈', '🥉'];
+
+  let lbDb = null;
+  try {
+    if (typeof firebase !== 'undefined') {
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      lbDb = firebase.database();
+    }
+  } catch (err) { console.warn('Không khởi tạo được Firebase:', err); }
+
+  const lbStoreGet = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+  const lbStoreSet = (k, v) => { try { localStorage.setItem(k, v); } catch (_) { /* storage may be disabled */ } };
+  const lbNow = () => firebase.database.ServerValue.TIMESTAMP;
+
+  function lbMakeUid() {
+    try {
+      const a = new Uint8Array(10);
+      crypto.getRandomValues(a);
+      return Array.from(a, (b) => b.toString(36).padStart(2, '0')).join('');
+    } catch (_) {
+      return Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+    }
+  }
+  let lbUid = lbStoreGet(LB_KEY_UID);
+  if (!lbUid) { lbUid = lbMakeUid(); lbStoreSet(LB_KEY_UID, lbUid); }
+
+  function lbPlayerName() {
+    const saved = (lbStoreGet(LB_KEY_NAME) || '').trim().slice(0, 16);
+    return saved || `Runner #${lbUid.slice(-4)}`;
+  }
+
+  // Đẩy điểm: chỉ ghi khi cao hơn điểm đang có trên server (không bao giờ làm tụt kỷ lục)
+  function lbSubmitScore(rawScore) {
+    if (!lbDb) return;
+    const value = Math.floor(Number(rawScore));
+    if (!Number.isFinite(value) || value <= 0) return;
+    const payload = { name: lbPlayerName(), score: value, character: charName(selectedCharacter), updatedAt: lbNow() };
+    lbDb.ref('leaderboard/' + lbUid)
+      .transaction((cur) => (cur && Number(cur.score) >= value ? undefined : payload))
+      .catch((err) => console.warn('Không đẩy được điểm:', err));
+  }
+
+  // Đổi tên: lưu local + cập nhật Firebase, giữ nguyên score cũ
+  function lbSaveName(rawName) {
+    const name = String(rawName || '').replace(/\s+/g, ' ').trim().slice(0, 16);
+    if (!name) return null;
+    lbStoreSet(LB_KEY_NAME, name);
+    if (lbDb) {
+      const ref = lbDb.ref('leaderboard/' + lbUid);
+      ref.once('value').then((snap) => {
+        if (snap.exists()) return ref.update({ name, updatedAt: lbNow() });
+        if (best > 0) return ref.set({ name, score: Math.floor(best), character: charName(selectedCharacter), updatedAt: lbNow() });
+        return null; // chưa có điểm: tên sẽ được gửi cùng kỷ lục đầu tiên
+      }).catch((err) => console.warn('Không cập nhật được tên:', err));
+    }
+    return name;
+  }
+
+  // Nạp NPC mặc định (chỉ ghi nếu node chưa tồn tại)
+  function lbSeedNpcs() {
+    if (!lbDb) return;
+    LB_NPCS.forEach((n) => {
+      lbDb.ref('leaderboard/' + n.id)
+        .transaction((cur) => (cur === null ? { name: n.name, score: n.score, character: n.character, updatedAt: lbNow() } : undefined))
+        .catch((err) => console.warn('Không nạp được NPC:', err));
+    });
+  }
+  lbSeedNpcs();
+
+  // ----- Giao diện popup -----
+  const lbModal = $('leaderboardModal');
+  const lbList = $('lbList');
+  const lbNameInput = $('lbNameInput');
+  const lbNameSave = $('lbNameSave');
+  const lbStatus = $('lbStatus');
+  let lbListening = false;
+
+  function lbSetStatus(text) { lbStatus.textContent = text || ''; lbStatus.style.display = text ? 'block' : 'none'; }
+  function lbEl(tag, cls, text) {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text !== undefined) el.textContent = text;
+    return el;
+  }
+
+  function lbRender(rows) {
+    lbList.textContent = '';
+    if (!rows.length) { lbList.appendChild(lbEl('p', 'lb-empty', 'Chưa có ai trên bảng xếp hạng. Hãy lập kỷ lục đầu tiên!')); return; }
+    rows.forEach((row, i) => {
+      const item = lbEl('div', 'lb-row' + (i < 3 ? ` is-top${i + 1}` : '') + (row.id === lbUid ? ' is-me' : ''));
+      item.appendChild(i < 3 ? lbEl('span', 'lb-rank', LB_MEDALS[i]) : lbEl('span', 'lb-rank px', String(i + 1)));
+      const info = lbEl('div', 'lb-info');
+      const nameEl = lbEl('strong', '', row.name);
+      if (row.id.indexOf('npc_') === 0) nameEl.appendChild(lbEl('span', 'lb-npc', 'NPC'));
+      info.appendChild(nameEl);
+      info.appendChild(lbEl('small', '', row.character));
+      item.appendChild(info);
+      item.appendChild(lbEl('span', 'lb-score px', row.score.toLocaleString('vi-VN')));
+      lbList.appendChild(item);
+    });
+  }
+
+  function lbListen() {
+    if (lbListening) return;
+    if (!lbDb) { lbSetStatus('Chưa kết nối được Firebase. Kiểm tra mạng rồi mở lại.'); return; }
+    lbListening = true;
+    lbSetStatus('Đang tải bảng xếp hạng...');
+    lbDb.ref('leaderboard').orderByChild('score').limitToLast(LB_TOP).on('value', (snap) => {
+      const rows = [];
+      snap.forEach((child) => {
+        const v = child.val() || {};
+        rows.push({
+          id: String(child.key),
+          name: String(v.name || 'Runner').slice(0, 16),
+          score: Math.floor(Number(v.score)) || 0,
+          character: String(v.character || 'Duy')
+        });
+      });
+      rows.reverse(); // giảm dần
+      lbSetStatus('');
+      lbRender(rows);
+    }, (err) => {
+      lbListening = false;
+      console.warn('Lỗi đọc bảng xếp hạng:', err);
+      lbSetStatus('Không tải được bảng xếp hạng. Kiểm tra mạng hoặc Rules của Firebase.');
+    });
+  }
+
+  function openLeaderboardModal() {
+    lbNameInput.value = lbPlayerName();
+    lbSetStatus('');
+    openModal(lbModal, $('openLeaderboard'));
+    lbListen();
+  }
+  function handleSaveName() {
+    const name = lbSaveName(lbNameInput.value);
+    if (!name) { lbSetStatus('Tên không được để trống.'); return; }
+    lbNameInput.value = name;
+    lbSetStatus(`Đã lưu tên: ${name}`);
+  }
+  $('openLeaderboard').addEventListener('click', openLeaderboardModal);
+  lbNameSave.addEventListener('click', handleSaveName);
+  lbNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveName(); } });
+
+  function toLobby(openUpgrades = false) {
+    clearTimeout(overTimer);
+    state = 'ready';
+    bossMode = false;
+    gameScreen.classList.remove('boss-mode');
+    gameOver.hidden = true;
+    showScreen('lobby');
+    updateLobby();
+    renderCharacterCards();
+    if (openUpgrades) openCharacterModal();
+  }
+  playButton.addEventListener('click', () => startGame());
+  openCharactersBtn.addEventListener('click', openCharacterModal);
+  openHelpBtn.addEventListener('click', openHelpModal);
+  retryButton.addEventListener('click', () => retryRun());
+  backLobbyButton.addEventListener('click', () => toLobby(!bossMode));
+
+  function awardCoinsForScore() {
+    const whole = Math.floor(score);
+    const distanceCoins = Math.floor(whole / 20) - Math.floor(lastCoinScore / 20);
+    const reachedMilestone = Math.floor(whole / 1000);
+    const bonusCoins = Math.max(0, reachedMilestone - bonusMilestone) * 100;
+    if (distanceCoins > 0 || bonusCoins > 0) {
+      const coinMult = (runItems.magnet || phatSugarOn()) ? 2 : 1; // V23: ×2 Coin vật phẩm hoặc hiệu ứng C₁₂H₂₂O₁₁ của Phát (không cộng dồn)
+      const gained = (Math.max(0, distanceCoins) + bonusCoins) * coinMult;
+      coinBalance += gained;
+      runCoins += gained;
+      lastCoinScore = whole;
+      bonusMilestone = reachedMilestone;
+      saveEconomy();
+      if (bonusCoins > 0) showToast(`MỐC ${fmt(reachedMilestone * 1000)} ĐIỂM! +${bonusCoins * coinMult} COIN THƯỞNG`);
+    } else if (whole > lastCoinScore) lastCoinScore = whole;
+  }
+
+  // =====================================================================
+  // V15 — Crystal · Nhiệm vụ hằng ngày · Gacha · Túi vật phẩm · Mini-game
+  // =====================================================================
+  const ITEMS = {
+    shield: { icon: '🛡️', name: '+1 chống chịu', desc: 'Chịu thêm 1 va chạm trong 1 màn.', price: 2500 },
+    magnet: { icon: '🪙', name: '×2 Coin', desc: 'Nhân đôi Coin nhận được trong 1 màn.', price: 600 },
+    hourglass: { icon: '⌛', name: 'Giảm thời gian hồi chiêu 15%', desc: 'Giảm 15% thời gian hồi chiêu trong 1 màn.', price: 3000 },
+    duration: { icon: '🔋', name: 'Tăng 15% thời gian duy trì kỹ năng', desc: 'Kỹ năng kéo dài thêm 15% trong 1 màn.', price: 3600 }
+  };
+  // Biểu tượng vật phẩm dạng HTML: ×2 Coin hiện đồng xu kèm huy hiệu ×2 (không còn là nam châm).
+  function itemIconHTML(key) {
+    const it = ITEMS[key];
+    return it.badge ? `<span class="item-ico-stack">${it.icon}<b class="item-ico-badge">${it.badge}</b></span>` : it.icon;
+  }
+  const itemIconText = (key) => ITEMS[key].icon + (ITEMS[key].badge || '');
+  const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
+
+  function refreshCurrencies() {
+    const coinText = fmt(coinBalance);
+    const crystalText = fmt(crystals);
+    [lobbyCoin, modalCoin, $('questCoin'), $('challengeCoin'), $('gachaCoin'), $('shopCoin')].forEach(el => { if (el) el.textContent = coinText; });
+    [lobbyCrystal, $('questCrystal'), $('challengeCrystal'), $('gachaCrystal'), $('shopCrystal')].forEach(el => { if (el) el.textContent = crystalText; });
+  }
+  function updateMiniButton() {
+    miniKeysLabel.textContent = `${miniKeys}/3`;
+    miniIcon.textContent = (bossUnlocked || miniKeys >= 3) ? '🔓' : '🔒';
+  }
+  const itemAvailable = (key) => inventory[key] > 0;
+  function updateEquipStrip() {
+    const active = Object.keys(ITEMS).filter(k => equipped[k] && itemAvailable(k));
+    equipStrip.hidden = active.length === 0;
+    equipStrip.textContent = active.map(k => itemIconText(k)).join(' ') + ' ĐÃ TRANG BỊ';
+  }
+
+  // ---------- Vật phẩm: tiêu thụ khi bấm Chơi ----------
+  function consumeEquippedItems(forBoss = false) {
+    if (racingMode) { // RACING: cấm vật phẩm hỗ trợ, không trừ túi đồ, giữ nguyên trạng thái trang bị
+      runItems = { shield: false, magnet: false, hourglass: false, duration: false };
+      hourglassRun = false;
+      durationRun = false;
+      return;
+    }
+    runItems = { shield: false, magnet: false, hourglass: false, duration: false };
+    for (const key of ['shield', 'magnet', 'hourglass', 'duration']) {
+      if (forBoss && key === 'magnet') continue; // ×2 Coin không áp dụng ở trận Boss: giữ nguyên vật phẩm, không tiêu hao
+      if (equipped[key] && inventory[key] > 0) {
+        inventory[key]--;
+        runItems[key] = true;
+      }
+      equipped[key] = false; // mỗi lần chơi phải chọn lại trước khi bấm Chơi
+    }
+    hourglassRun = runItems.hourglass;
+    durationRun = runItems.duration;
+    saveMeta();
+  }
+  function runItemsToast() {
+    const used = Object.keys(ITEMS).filter(k => runItems[k]).map(k => `${itemIconText(k)} ${ITEMS[k].name}`);
+    return used.length ? `Đang dùng: ${used.join(' · ')}` : '';
+  }
+  function renderHudItems() {
+    const parts = [];
+    if (runItems.magnet) parts.push('<span class="hud-item" title="×2 Coin">🪙<small>×2</small></span>');
+    if (runItems.hourglass) parts.push('<span class="hud-item" title="Giảm thời gian hồi chiêu 15%">⌛<small>-15%</small></span>');
+    if (runItems.duration) parts.push('<span class="hud-item" title="Tăng 15% thời gian duy trì kỹ năng">🔋<small>+15%</small></span>');
+    hudItems.innerHTML = parts.join('');
+  }
+
+  // ---------- Nhiệm vụ hằng ngày ----------
+  const QUEST_POOL = {
+    dist: [{ target: 1000, reward: 250 }, { target: 1200, reward: 350 }, { target: 1500, reward: 500 }],
+    total: [{ target: 3000, reward: 300 }],
+    bus: [{ target: 1, reward: 100 }, { target: 2, reward: 200 }],
+    skill: [{ target: 2, reward: 250 }, { target: 3, reward: 400 }]
+  };
+  const QUEST_ICON = { dist: '🏃', total: '🛣️', bus: '🚌', skill: '✨' };
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function questText(q) {
+    if (q.type === 'dist') return `Chạy đạt ${fmt(q.target)}m trong 1 màn`;
+    if (q.type === 'total') return `Chạy tích lũy tổng ${fmt(q.target)}m qua nhiều màn`;
+    if (q.type === 'bus') return `Tông vào xe buýt ${q.target} lần`;
+    return `Kích hoạt kỹ năng ${q.target} lần trong một lượt chạy`;
+  }
+  function generateQuests(day) {
+    const types = Object.keys(QUEST_POOL);
+    for (let i = types.length - 1; i > 0; i--) { // xáo trộn Fisher–Yates
+      const j = Math.floor(Math.random() * (i + 1));
+      [types[i], types[j]] = [types[j], types[i]];
+    }
+    const quests = types.slice(0, 3).map((type, i) => {
+      const variant = pickOne(QUEST_POOL[type]);
+      return { id: `${day}-${i}`, type, target: variant.target, reward: variant.reward, progress: 0, claimed: false };
+    });
+    return { day, quests, bonusClaimed: false };
+  }
+  function saveQuests() { lsWrite(LS.quests, questData); }
+  // Trả về true nếu vừa sang ngày mới (đã tạo nhiệm vụ mới).
+  function ensureQuests() {
+    const day = todayKey();
+    const saved = questData || lsRead(LS.quests, null);
+    const valid = saved && saved.day === day && Array.isArray(saved.quests) && saved.quests.length === 3 &&
+      saved.quests.every(q => q && QUEST_POOL[q.type] && Number.isFinite(q.target) && Number.isFinite(q.reward));
+    if (valid) { questData = saved; return false; }
+    questData = generateQuests(day);
+    saveQuests();
+    return true;
+  }
+  function commitQuestsRun(finalScore) {
+    ensureQuests();
+    const meters = Math.floor(finalScore);
+    questData.quests.forEach(q => {
+      if (q.type === 'dist') q.progress = Math.max(q.progress, meters);
+      else if (q.type === 'total') q.progress += meters;
+      else if (q.type === 'bus') q.progress += runBusHits;
+      else if (q.type === 'skill') q.progress = Math.max(q.progress, runSkillCount);
+    });
+    saveQuests();
+  }
+  function questsAllClaimed() { return questData.quests.every(q => q.claimed); }
+  // V22: chấm đỏ của nút NHIỆM VỤ gộp cả Hằng ngày + Thử thách; mỗi tab có chấm riêng.
+  const questTabDot = $('questTabDot');
+  function updateQuestDot() {
+    if (!questData) return;
+    const claimable = questData.quests.some(q => !q.claimed && q.progress >= q.target);
+    const bonus = questsAllClaimed() && !questData.bonusClaimed;
+    const dailyDot = claimable || bonus;
+    const challengeDotOn = challengeUnlocked() && challengeHasClaimable();
+    questDot.hidden = !(dailyDot || challengeDotOn);
+    if (questTabDot) questTabDot.hidden = !dailyDot;
+  }
+  function renderQuests() {
+    ensureQuests();
+    refreshCurrencies();
+    questList.innerHTML = questData.quests.map((q, i) => {
+      const done = q.progress >= q.target;
+      const shown = Math.min(q.progress, q.target);
+      const pct = Math.round(shown / q.target * 100);
+      const unit = q.type === 'dist' || q.type === 'total' ? 'm' : '';
+      let action;
+      if (q.claimed) action = '<button class="card-btn select is-on" type="button" disabled>✓ ĐÃ NHẬN</button>';
+      else if (done) action = `<button class="card-btn upgrade" type="button" data-claim="${i}">NHẬN 🪙 ${fmt(q.reward)}</button>`;
+      else action = `<button class="card-btn upgrade" type="button" disabled>🪙 ${fmt(q.reward)}</button>`;
+      return `<div class="quest ${done ? 'done' : ''} ${q.claimed ? 'claimed' : ''}">
+        <span class="quest-ico" aria-hidden="true">${QUEST_ICON[q.type]}</span>
+        <div class="quest-main"><strong>${questText(q)}</strong><div class="achv-bar"><i style="width:${pct}%"></i></div><small>${fmt(shown)}/${fmt(q.target)}${unit}</small></div>
+        ${action}
+      </div>`;
+    }).join('');
+    if (questData.bonusClaimed) {
+      questBonus.disabled = true;
+      questBonus.textContent = '✓ ĐÃ NHẬN THƯỞNG LỚN · 10 💎';
+    } else if (questsAllClaimed()) {
+      questBonus.disabled = false;
+      questBonus.textContent = 'NHẬN THƯỞNG LỚN · 10 💎';
+    } else {
+      questBonus.disabled = true;
+      questBonus.textContent = '🔒 THƯỞNG LỚN · 10 💎 (NHẬN ĐỦ 3 NHIỆM VỤ)';
+    }
+  }
+  questList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-claim]');
+    if (!btn || btn.disabled) return;
+    ensureQuests();
+    const q = questData.quests[Number(btn.dataset.claim)];
+    if (!q || q.claimed || q.progress < q.target) return;
+    q.claimed = true;
+    coinBalance += q.reward;
+    saveEconomy();
+    saveQuests();
+    updateLobby();
+    renderQuests();
+    playTone(740, 0.1, 'triangle', 0.035);
+  });
+  questBonus.addEventListener('click', () => {
+    ensureQuests();
+    if (questData.bonusClaimed || !questsAllClaimed()) return;
+    questData.bonusClaimed = true;
+    crystals += 10;
+    saveMeta();
+    saveQuests();
+    updateLobby();
+    renderQuests();
+    playTone(900, 0.14, 'triangle', 0.04);
+  });
+
+  // ---------- V20.1: Thử thách (CHALLENGE) — 2 nhiệm vụ / 3 ngày, thưởng Crystal ----------
+  const CHALLENGE_UNLOCK = 1000;
+  const CHALLENGE_PERIOD = 3 * 24 * 60 * 60 * 1000; // 3 ngày (ms), mốc theo timestamp hệ thống
+  const CHALLENGE_POOL = {
+    duy:   { icon: '🏃', title: 'Thử thách Duy', desc: 'Dùng Duy đạt 3.600 điểm trong một màn chạy thường', target: 3600, reward: 15, unit: 'm' },
+    trong: { icon: '⚡', title: 'Thử thách Trọng “Sét”', desc: 'Dùng Trọng “Sét” đạt 4.000 điểm trong một màn chạy thường', target: 4000, reward: 15, unit: 'm' },
+    coin:  { icon: '🪙', title: 'Thợ săn tiền vàng', desc: 'Kiếm được 2.000 Coin trong một màn chạy thường', target: 2000, reward: 25, unit: '' },
+    peak:  { icon: '🏔️', title: 'Chinh phục đỉnh cao', desc: 'Đạt 5.000 điểm trong một màn chạy thường', target: 5000, reward: 20, unit: 'm' },
+    total: { icon: '🛣️', title: 'Đường dài bền bỉ', desc: 'Chạy tích lũy tổng cộng 10.000 điểm qua nhiều màn chạy thường', target: 10000, reward: 20, unit: 'm' },
+    gear:  { icon: '🎒', title: 'Trang bị tận răng', desc: 'Dùng cùng lúc cả 4 vật phẩm hỗ trợ trong một màn chạy thường', target: 1, reward: 15, unit: '' },
+    solo:  { icon: '🛡️', title: 'Độc cô cầu bại', desc: 'Đánh bại Boss Xe Tăng mà không dùng vật phẩm hỗ trợ nào và không mất tim nào', target: 1, reward: 30, unit: '', needBoss: true }
+  };
+  const challengeCycle = (now = Date.now()) => Math.floor(now / CHALLENGE_PERIOD);
+  const challengeUnlocked = () => best >= CHALLENGE_UNLOCK;
+  function generateChallenge(cycle) {
+    const types = Object.keys(CHALLENGE_POOL).filter(t => !CHALLENGE_POOL[t].needBoss || bossUnlocked);
+    for (let i = types.length - 1; i > 0; i--) { // xáo trộn Fisher–Yates
+      const j = Math.floor(Math.random() * (i + 1));
+      [types[i], types[j]] = [types[j], types[i]];
+    }
+    return { cycle, quests: types.slice(0, 2).map(type => ({ type, progress: 0, claimed: false })) };
+  }
+  function saveChallenge() { lsWrite(LS.challenge, challengeData); }
+  // Trả về true nếu vừa tạo đợt thử thách mới (sang chu kỳ 3 ngày mới / dữ liệu chưa có hoặc hỏng).
+  function ensureChallenge() {
+    const cycle = challengeCycle();
+    const saved = challengeData || lsRead(LS.challenge, null);
+    const valid = saved && saved.cycle === cycle && Array.isArray(saved.quests) && saved.quests.length === 2 &&
+      saved.quests.every(q => q && CHALLENGE_POOL[q.type] && Number.isFinite(q.progress)) &&
+      saved.quests[0].type !== saved.quests[1].type;
+    if (valid) { challengeData = saved; return false; }
+    challengeData = generateChallenge(cycle);
+    saveChallenge();
+    return true;
+  }
+  function challengeTarget(q) { return CHALLENGE_POOL[q.type].target; }
+  // Gọi khi kết thúc một màn chạy thường (kể cả khi chưa mở khóa Thử thách thì không tính tiến độ).
+  function commitChallengeRun(finalScore) {
+    if (!challengeUnlocked()) return;
+    ensureChallenge();
+    const meters = Math.floor(finalScore);
+    challengeData.quests.forEach(q => {
+      if (q.claimed) return;
+      const cap = challengeTarget(q);
+      if (q.type === 'duy') { if (selectedCharacter === 'duy') q.progress = Math.min(cap, Math.max(q.progress, meters)); }
+      else if (q.type === 'trong') { if (selectedCharacter === 'trong') q.progress = Math.min(cap, Math.max(q.progress, meters)); }
+      else if (q.type === 'coin') q.progress = Math.min(cap, Math.max(q.progress, runCoins));
+      else if (q.type === 'peak') q.progress = Math.min(cap, Math.max(q.progress, meters));
+      else if (q.type === 'total') q.progress = Math.min(cap, q.progress + meters);
+      else if (q.type === 'gear') { if (runItems.shield && runItems.magnet && runItems.hourglass && runItems.duration) q.progress = 1; }
+    });
+    saveChallenge();
+    updateChallengeButton();
+  }
+  // Gọi khi kết thúc trận Boss.
+  function commitChallengeBoss(win) {
+    if (!challengeUnlocked()) return;
+    ensureChallenge();
+    if (bossMode && win && !runItems.shield && !runItems.hourglass && !runItems.duration && boss.lives === BOSS_CFG.lives) {
+      challengeData.quests.forEach(q => { if (q.type === 'solo' && !q.claimed) q.progress = 1; });
+      saveChallenge();
+    }
+    updateChallengeButton();
+  }
+  function challengeHasClaimable() {
+    return !!challengeData && challengeData.quests.some(q => !q.claimed && q.progress >= challengeTarget(q));
+  }
+  function updateChallengeButton() {
+    const unlocked = challengeUnlocked();
+    if (challengeLock) challengeLock.hidden = unlocked;
+    if (challengeDot) challengeDot.hidden = !(unlocked && challengeHasClaimable());
+    const tabBtn = $('qTabChallenge');
+    if (tabBtn) tabBtn.classList.toggle('is-locked', !unlocked);
+    updateQuestDot();
+  }
+  function challengeTimeLeftText() {
+    const ms = Math.max(0, (challengeCycle() + 1) * CHALLENGE_PERIOD - Date.now());
+    const totalMin = Math.ceil(ms / 60000);
+    const d = Math.floor(totalMin / 1440), h = Math.floor((totalMin % 1440) / 60), m = totalMin % 60;
+    return `${d} ngày ${h} giờ ${String(m).padStart(2, '0')} phút`;
+  }
+  function renderChallengeTimer() {
+    if (challengeTimerEl) challengeTimerEl.innerHTML = `⏳ Làm mới sau: <b>${challengeTimeLeftText()}</b>`;
+  }
+  function renderChallenge() {
+    ensureChallenge();
+    refreshCurrencies();
+    renderChallengeTimer();
+    challengeList.innerHTML = challengeData.quests.map((q, i) => {
+      const def = CHALLENGE_POOL[q.type];
+      const done = q.progress >= def.target;
+      const shown = Math.min(q.progress, def.target);
+      const pct = Math.round(shown / def.target * 100);
+      let action;
+      if (q.claimed) action = '<button class="card-btn select is-on" type="button" disabled>✓ ĐÃ NHẬN</button>';
+      else if (done) action = `<button class="card-btn upgrade" type="button" data-claim="${i}">NHẬN 💎 ${def.reward}</button>`;
+      else action = `<button class="card-btn upgrade" type="button" disabled>💎 ${def.reward}</button>`;
+      return `<div class="quest ${done ? 'done' : ''} ${q.claimed ? 'claimed' : ''}">
+        <span class="quest-ico" aria-hidden="true">${def.icon}</span>
+        <div class="quest-main"><strong>${def.title}</strong><small class="challenge-desc">${def.desc}</small><div class="achv-bar"><i style="width:${pct}%"></i></div><small>${fmt(shown)}/${fmt(def.target)}${def.unit}</small></div>
+        ${action}
+      </div>`;
+    }).join('');
+  }
+  challengeList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-claim]');
+    if (!btn || btn.disabled) return;
+    ensureChallenge();
+    const q = challengeData.quests[Number(btn.dataset.claim)];
+    if (!q || q.claimed || q.progress < challengeTarget(q)) return;
+    q.claimed = true;
+    crystals += CHALLENGE_POOL[q.type].reward;
+    saveMeta();
+    saveChallenge();
+    updateLobby();
+    renderChallenge();
+    playTone(900, 0.14, 'triangle', 0.04);
+  });
+  setInterval(() => { if (activeModal === questModal && questTab === 'challenge') renderChallengeTimer(); }, 30000);
+
+  // ---------- Gacha ----------
+  const GACHA_PRICE = { 1: 15, 5: 65 };
+  let gachaBusy = false;
+  let lastBoxes = [];
+  function rollBox() {
+    const coin = 300 + Math.floor(Math.random() * 601); // 300–900
+    coinBalance += coin;
+    const roll = Math.random();
+    let text;
+    let rare = false;
+    if (roll < 0.80) {
+      const key = pickOne(Object.keys(ITEMS));
+      inventory[key]++;
+      text = `${itemIconText(key)} ${ITEMS[key].name} +1`;
+    } else if (roll < 0.825) {
+      rare = true;
+      if (owned.toduy) { crystals += 25; text = '🥷 Tô Duy (đã sở hữu) → hoàn 💎 25'; }
+      else { owned.toduy = true; text = '🥷 NHÂN VẬT MỚI: Tô Duy! Đã mở khóa vĩnh viễn'; }
+    } else if (roll < 0.85) {
+      rare = true;
+      if (owned.duyquandoi) { crystals += 25; text = '🪖 Duy Quân đội (đã sở hữu) → hoàn 💎 25'; }
+      else { owned.duyquandoi = true; text = '🪖 NHÂN VẬT MỚI: Duy Quân đội! Đã mở khóa vĩnh viễn'; }
+    } else if (roll < 0.875) {
+      rare = true;
+      if (owned.trieu) { crystals += 25; text = '👑 Triều (đã sở hữu) → hoàn 💎 25'; }
+      else { owned.trieu = true; text = '👑 NHÂN VẬT MỚI: Triều! Đã mở khóa vĩnh viễn'; }
+    } else if (roll < 0.90) {
+      rare = true;
+      if (owned.tan) { crystals += 25; text = '🧹 Tân (đã sở hữu) → hoàn 💎 25'; }
+      else { owned.tan = true; text = '🧹 NHÂN VẬT MỚI: Tân! Đã mở khóa vĩnh viễn'; }
+    } else if (roll < 0.925) {
+      rare = true;
+      if (owned.phat) { crystals += 25; text = '⚡ Phát (đã sở hữu) → hoàn 💎 25'; }
+      else { owned.phat = true; text = '⚡ NHÂN VẬT MỚI: Phát! Đã mở khóa vĩnh viễn'; }
+    } else if (roll < 0.95) {
+      rare = true;
+      if (owned.onghai) { crystals += 25; text = '🚬 Ông Hai (đã sở hữu) → hoàn 💎 25'; }
+      else { owned.onghai = true; text = '🚬 NHÂN VẬT MỚI: Ông Hai! Đã mở khóa vĩnh viễn'; }
+    } else {
+      rare = true;
+      if (miniKeys < 3) { miniKeys++; text = `🔑 Key Mini-game (${miniKeys}/3)`; }
+      else { crystals += 50; text = '🔑 Key Mini-game (đã đủ 3/3) → đền bù 💎 50'; }
+    }
+    return { coin, text, rare };
+  }
+  function openBoxes(count) {
+    const price = GACHA_PRICE[count];
+    if (gachaBusy || !price || crystals < price) return;
+    gachaBusy = true;
+    crystals -= price;
+    lastBoxes = Array.from({ length: count }, rollBox); // phần thưởng được ghi ngay, hiệu ứng chỉ để hiển thị
+    achv.totalGacha += count;
+    window.LimitedEvent?.onGacha?.(count); // V24.1: nhiệm vụ sự kiện 20/11
+    saveAchv();
+    saveMeta();
+    saveEconomy();
+    updateLobby();
+    renderCharacterCards();
+    renderGacha(true);
+    gachaBox.classList.remove('is-burst');
+    gachaBox.classList.add('is-shaking');
+    playTone(260, 0.5, 'sawtooth', 0.02);
+    setTimeout(() => {
+      gachaBox.classList.remove('is-shaking');
+      gachaBox.classList.add('is-burst');
+      gachaBusy = false;
+      renderGacha(false);
+      playTone(880, 0.18, 'triangle', 0.04);
+    }, 950);
+  }
+  function renderGacha(opening = false) {
+    refreshCurrencies();
+    $('openX1').disabled = opening || gachaBusy || crystals < GACHA_PRICE[1];
+    $('openX5').disabled = opening || gachaBusy || crystals < GACHA_PRICE[5];
+    if (opening) { gachaResults.innerHTML = ''; return; }
+    if (!lastBoxes.length) { gachaResults.innerHTML = ''; return; }
+    const totalCoin = lastBoxes.reduce((sum, b) => sum + b.coin, 0);
+    gachaResults.innerHTML = lastBoxes.map((b, i) => `<div class="gacha-row ${b.rare ? 'is-rare' : ''}" style="animation-delay:${i * 0.12}s">
+        <span class="coin-text">🪙 +${fmt(b.coin)}</span><span>${b.text}</span></div>`).join('') +
+      (lastBoxes.length > 1 ? `<div class="gacha-total">TỔNG: 🪙 +${fmt(totalCoin)}</div>` : '');
+  }
+  $('openX1').addEventListener('click', () => openBoxes(1));
+  $('openX5').addEventListener('click', () => openBoxes(5));
+
+  // ---------- Túi vật phẩm ----------
+  function renderBag() {
+    bagList.innerHTML = Object.keys(ITEMS).map((key) => {
+      const info = ITEMS[key];
+      const avail = itemAvailable(key);
+      const on = equipped[key] && avail;
+      const btn = on
+        ? `<button class="card-btn select is-on" type="button" data-equip="${key}">✓ ĐÃ TRANG BỊ</button>`
+        : `<button class="card-btn select" type="button" data-equip="${key}" ${avail ? '' : 'disabled'}>${avail ? 'TRANG BỊ' : 'CHƯA CÓ'}</button>`;
+      return `<div class="bag-item ${on ? 'is-equipped' : ''}">
+        <span class="bag-ico" aria-hidden="true">${itemIconHTML(key)}</span>
+        <div><strong>${info.name}</strong><p>${info.desc}<br>Sở hữu: <b class="bag-count">${inventory[key]}</b></p></div>
+        ${btn}
+      </div>`;
+    }).join('');
+  }
+  bagList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-equip]');
+    if (!btn || btn.disabled) return;
+    const key = btn.dataset.equip;
+    if (!itemAvailable(key)) return;
+    equipped[key] = !equipped[key];
+    saveMeta();
+    renderBag();
+    updateEquipStrip();
+  });
+
+  // ---------- Shop ----------
+  const SHOP_LIMIT = 3; // số lần mua mỗi vật phẩm mỗi ngày
+  let shopData = null;
+  let shopTab = 'common';
+  function ensureShop() {
+    const day = todayKey();
+    const saved = shopData || lsRead(LS.shop, null);
+    if (saved && saved.day === day && saved.bought && typeof saved.bought === 'object') { shopData = saved; return; }
+    shopData = { day, bought: { shield: 0, magnet: 0, hourglass: 0, duration: 0 } };
+    lsWrite(LS.shop, shopData);
+  }
+  const shopBought = (key) => toCount(shopData.bought[key], SHOP_LIMIT);
+  const SHOP_LINES = {
+    greet: ['Mua gì thì mua, đừng làm mất thời gian của ông Duy!', 'Vào đây! Hàng ông Duy toàn loại xịn.', 'Có tiền thì cứ mua, hết hàng là mai quay lại.'],
+    buy: ['Hàng đẹp đấy, chạy cho nhanh nhé!', 'Cảm ơn quý khách. Chan pa gật đầu.', 'Giao dịch xong. Đi chơi đi!'],
+    poor: ['Thiếu Coin rồi, đi chạy thêm đi!', 'Ví mỏng quá… chạy kiếm thêm Coin nhé','Đéo đủ coin.'],
+    soldout: ['Hôm nay hết hàng món này, mai quay lại nhé!'],
+    soon: ['Hàng này chưa về. Đợi ông Duy nhập đã!']
+  };
+  let shopBubbleTimer = 0;
+  function shopSay(kind) {
+    if (!shopBubble) return;
+    shopBubble.textContent = pickOne(SHOP_LINES[kind] || SHOP_LINES.greet);
+    shopBubble.classList.remove('is-pop');
+    void shopBubble.offsetWidth;
+    shopBubble.classList.add('is-pop');
+    const img = $('shopkeeperImg');
+    if (img && kind !== 'greet') {
+      img.classList.remove('is-react');
+      void img.offsetWidth;
+      img.classList.add('is-react');
+    }
+    clearTimeout(shopBubbleTimer);
+    shopBubbleTimer = setTimeout(() => { if (activeModal === shopModal) shopBubble.classList.remove('is-pop'); }, 4200);
+  }
+  function renderShop() {
+    ensureShop();
+    refreshCurrencies();
+    document.querySelectorAll('.stab').forEach(t => t.classList.toggle('is-selected', t.dataset.stab === shopTab));
+    // V22: Túi đồ là tab thứ 4 của Shop (giữ nguyên thanh vật phẩm đang trang bị ở sảnh)
+    const bagTab = shopTab === 'bag';
+    shopBody.hidden = bagTab;
+    bagPane.hidden = !bagTab;
+    if (bagTab) { renderBag(); return; }
+    if (shopTab === 'special') {
+      // Nhân vật Tiến và Quang được bán vĩnh viễn tại Shop → Đặc Biệt.
+      const hasTien = !!owned.tien, hasQuang = !!owned.quang;
+      const tienLabel = hasTien ? '✓ ĐÃ SỞ HỮU' : `MUA <span class="cost">🪙 ${fmt(TIEN_PRICE)}</span>`;
+      const quangLabel = hasQuang ? '✓ ĐÃ SỞ HỮU' : `MUA <span class="cost">🪙 ${fmt(QUANG_PRICE)}</span>`;
+      shopBody.innerHTML = `<div class="shop-list">
+        <div class="shop-item shop-char ${hasTien ? 'is-soldout' : ''}">
+          <span class="shop-thumb-wrap"><img class="shop-thumb" src="assets/tien.png" alt="Tiến"></span>
+          <div class="shop-item-main"><strong>Tiến <em class="shop-tag">NHÂN VẬT</em></strong>
+            <p>Kỹ năng <b>NHẢY KÉP</b>: bấm nhảy thêm 1 lần trên không; lượt nhảy tự hồi khi chạm đất, nóc xe buýt hoặc giàn giáo.</p>
+            <small>Mua một lần · mở khóa vĩnh viễn</small></div>
+          <button class="card-btn upgrade shop-buy ${coinBalance < TIEN_PRICE && !hasTien ? 'is-poor' : ''}" type="button" data-buy-char="tien" ${hasTien ? 'disabled' : ''}>${tienLabel}</button>
+        </div>
+        <div class="shop-item shop-char ${hasQuang ? 'is-soldout' : ''}">
+          <span class="shop-thumb-wrap"><img class="shop-thumb" src="assets/quang.png" alt="Quang"></span>
+          <div class="shop-item-main"><strong>Quang <em class="shop-tag">NHÂN VẬT HUYỀN THOẠI</em></strong>
+            <p><b>GOD RIDER</b>: cưỡi siêu mô tô tăng tốc 1,45× trong 3,5 giây, miễn nhiễm va chạm, cán văng chướng ngại và lướt qua hố nước.</p>
+            <small>Mua một lần · mở khóa vĩnh viễn · nâng cấp riêng đến Lv4</small></div>
+          <button class="card-btn upgrade shop-buy ${coinBalance < QUANG_PRICE && !hasQuang ? 'is-poor' : ''}" type="button" data-buy-char="quang" ${hasQuang ? 'disabled' : ''}>${quangLabel}</button>
+        </div>
+      </div>`;
+      return;
+    }
+    if (shopTab === 'premium') {
+      // V20 — Tab Cao Cấp: skin Tiến Trọng Duy (cần có Tiến), trả bằng Crystal HOẶC Coin
+      const hasChar = !!owned.tien;
+      const hasSkin = !!owned.tienSkin;
+      const crystalPoor = crystals < TIEN_SKIN_CRYSTAL;
+      const coinPoor = coinBalance < TIEN_SKIN_COIN;
+      let action;
+      let note;
+      if (hasSkin) {
+        action = '<button class="card-btn upgrade shop-buy" type="button" disabled>✓ ĐÃ SỞ HỮU</button>';
+        note = 'Mặc / Tháo skin tại thẻ <b>Tiến</b> trong popup <b>Nhân vật &amp; Nâng cấp</b>.';
+      } else if (!hasChar) {
+        action = '<button class="card-btn upgrade shop-buy" type="button" disabled>🔒 CHƯA MỞ</button>';
+        note = '<span class="shop-need">🔒 Cần sở hữu nhân vật Tiến trước</span>';
+      } else {
+        action = `<div class="shop-pay">
+          <button class="card-btn upgrade shop-buy ${crystalPoor ? 'is-poor' : ''}" type="button" data-buy-skin="crystal"><span class="cost">💎 ${TIEN_SKIN_CRYSTAL}</span></button>
+          <button class="card-btn upgrade shop-buy ${coinPoor ? 'is-poor' : ''}" type="button" data-buy-skin="coin"><span class="cost">🪙 ${fmt(TIEN_SKIN_COIN)}</span></button>
+        </div>`;
+        note = 'Thanh toán bằng <b>💎 Crystal</b> hoặc <b>🪙 Coin</b>.';
+      }
+      shopBody.innerHTML = `<div class="shop-list"><div class="shop-item shop-char ${hasSkin ? 'is-soldout' : ''} ${!hasChar ? 'is-locked' : ''}">
+        <span class="shop-thumb-wrap"><img class="shop-thumb" src="assets/tien.png" alt="Skin Tiến Trọng Duy">${!hasChar ? '<i class="shop-lock" aria-hidden="true">🔒</i>' : ''}</span>
+        <div class="shop-item-main"><strong>Tiến Trọng Duy <em class="shop-tag">SKIN</em></strong>
+          <p>Giữ <b>Nhảy kép</b> và thêm <b>ANH EM “SÉT”</b> (hồi 50s · kéo dài 22s): Duy &amp; Trọng “Sét” chạy cùng, miễn nhiễm va chạm và phóng tia sét phá chướng ngại trong tầm 360px.</p>
+          <small>${note}</small></div>
+        ${action}
+      </div></div>`;
+      return;
+    }
+    shopBody.innerHTML = '<div class="shop-list">' + Object.keys(ITEMS).map((key) => {
+      const info = ITEMS[key];
+      const bought = shopBought(key);
+      const left = SHOP_LIMIT - bought;
+      const soldOut = left <= 0;
+      const poor = coinBalance < info.price;
+      const label = soldOut ? 'HẾT LƯỢT HÔM NAY' : `MUA <span class="cost">🪙 ${fmt(info.price)}</span>`;
+      return `<div class="shop-item ${soldOut ? 'is-soldout' : ''}">
+        <span class="bag-ico" aria-hidden="true">${itemIconHTML(key)}</span>
+        <div class="shop-item-main"><strong>${info.name}</strong><p>${info.desc}</p>
+          <small>Đã mua hôm nay: <b class="bag-count">${bought}/${SHOP_LIMIT}</b> · Đang có: <b class="bag-count">${inventory[key]}</b></small></div>
+        <button class="card-btn upgrade shop-buy ${poor && !soldOut ? 'is-poor' : ''}" type="button" data-buy="${key}" ${soldOut ? 'disabled' : ''}>${label}</button>
+      </div>`;
+    }).join('') + '</div>';
+  }
+  function buyQuang() {
+    if (owned.quang) { shopSay('soldout'); renderShop(); return; }
+    if (coinBalance < QUANG_PRICE) { shopSay('poor'); showToast(`Chưa đủ Coin: cần ${fmt(QUANG_PRICE)} Coin để mở khóa Quang.`); return; }
+    coinBalance -= QUANG_PRICE;
+    owned.quang = true;
+    saveEconomy(); saveMeta(); updateLobby(); renderCharacterCards(); renderShop(); shopSay('buy');
+    playUiSound('claim');
+    showToast('GOD RIDER ĐÃ ĐƯỢC MỞ KHÓA! Quang hiện đã có trong danh sách nhân vật.');
+  }
+  function buyTien() {
+    if (owned.tien) { shopSay('soldout'); renderShop(); return; }
+    if (coinBalance < TIEN_PRICE) { shopSay('poor'); showToast(`Chưa đủ Coin: cần ${fmt(TIEN_PRICE)} Coin.`); return; }
+    coinBalance -= TIEN_PRICE;
+    owned.tien = true;
+    saveEconomy();
+    saveMeta();
+    updateLobby();
+    renderCharacterCards();
+    renderShop();
+    shopSay('buy');
+    playUiSound('claim');
+    showToast('ĐÃ MỞ KHÓA NHÂN VẬT TIẾN! Vào Nhân vật & Nâng cấp để chọn.');
+  }
+  function buyTienSkin(method) {
+    if (!owned.tien || owned.tienSkin) return;
+    if (method === 'crystal') {
+      if (crystals < TIEN_SKIN_CRYSTAL) { shopSay('poor'); showToast(`Chưa đủ Crystal: cần ${TIEN_SKIN_CRYSTAL} Crystal.`); return; }
+      crystals -= TIEN_SKIN_CRYSTAL;
+    } else if (method === 'coin') {
+      if (coinBalance < TIEN_SKIN_COIN) { shopSay('poor'); showToast(`Chưa đủ Coin: cần ${fmt(TIEN_SKIN_COIN)} Coin.`); return; }
+      coinBalance -= TIEN_SKIN_COIN;
+    } else return;
+    owned.tienSkin = true;
+    equippedSkin.tien = false; // mua xong chưa tự mặc: bật tại thẻ Tiến
+    saveEconomy();
+    saveMeta();
+    updateLobby();
+    renderCharacterCards();
+    renderShop();
+    shopSay('buy');
+    playUiSound('claim');
+    showToast('ĐÃ MUA SKIN TIẾN TRỌNG DUY! Vào Nhân vật & Nâng cấp → thẻ Tiến để Mặc.');
+  }
+  shopBody.addEventListener('click', (event) => {
+    const charBtn = event.target.closest('[data-buy-char]');
+    const skinBtn = event.target.closest('[data-buy-skin]');
+    if (charBtn && !charBtn.disabled) { if (charBtn.dataset.buyChar === 'quang') buyQuang(); else buyTien(); return; }
+    if (skinBtn && !skinBtn.disabled) { buyTienSkin(skinBtn.dataset.buySkin); return; }
+    const btn = event.target.closest('[data-buy]');
+    if (!btn || btn.disabled) return;
+    ensureShop();
+    const key = btn.dataset.buy;
+    const info = ITEMS[key];
+    if (!info) return;
+    if (shopBought(key) >= SHOP_LIMIT) { shopSay('soldout'); renderShop(); return; }
+    if (coinBalance < info.price) { shopSay('poor'); showToast(`Chưa đủ Coin: cần ${fmt(info.price)} Coin.`); return; }
+    coinBalance -= info.price;
+    inventory[key]++;
+    window.LimitedEvent?.onShopBuy?.(key); // V24.1: nhiệm vụ sự kiện 20/11
+    shopData.bought[key] = shopBought(key) + 1;
+    lsWrite(LS.shop, shopData);
+    saveEconomy();
+    saveMeta();
+    updateLobby();
+    renderShop();
+    shopSay('buy');
+    playTone(780, 0.12, 'triangle', 0.035);
+  });
+  document.querySelectorAll('.stab').forEach((tab) => tab.addEventListener('click', () => {
+    shopTab = tab.dataset.stab;
+    renderShop();
+    shopSay('greet');
+  }));
+
+  // ---------- Mini-game: Đánh Boss Xe Tăng ----------
+  function renderMini() {
+    const slots = [0, 1, 2].map(i => `<span class="key-slot ${i < miniKeys ? 'on' : ''}" aria-hidden="true">🔑</span>`).join('');
+    const head = `<div class="key-slots" role="img" aria-label="${miniKeys} trên 3 Key">${slots}</div>
+      <p class="px mini-count">${miniKeys}/3 KEY</p>`;
+    if (!bossUnlocked) {
+      const can = miniKeys >= BOSS_CFG.unlockKeys;
+      miniBody.innerHTML = head + (can
+        ? '<p>Bạn đã thu thập đủ <b>3/3 Key</b>! Mở khóa <b>vĩnh viễn</b> chế độ <b>Đánh Boss Xe Tăng</b> (tốn 3 Key, chỉ một lần).</p>'
+        : '<p>Cần đủ <b>3/3 Key</b> để mở khóa chế độ <b>Đánh Boss Xe Tăng</b>.<br>Key có thể rơi ngẫu nhiên (5%) khi mở hộp Gacha.</p>') +
+        `<button class="btn btn-play btn-small boss-unlock" type="button" data-boss="unlock" ${can ? '' : 'disabled'}><span aria-hidden="true">🔓</span><span>MỞ KHÓA CHẾ ĐỘ BOSS</span></button>`;
+      return;
+    }
+    const keyOk = miniKeys >= 1;
+    const crystalOk = crystals >= BOSS_CFG.crystalFee;
+    miniBody.innerHTML = head + `
+      <div class="boss-card">
+        <img src="assets/boss-tank.png" alt="Xe tăng chiến đấu">
+        <div><strong>${BOSS_CFG.name}</strong>
+        <p>Lụm hòm 🚀💣 trên đường để phản công, né đạn theo laser đỏ. Boss còn dưới 50% máu sẽ nổi giận!</p></div>
+      </div>
+      <ul class="boss-rules">
+        <li>❤️ <b>2 tim</b> (+1 giáp Lv4, +1 khiên 🛡️) · kỹ năng nhân vật chỉ còn <b>50%</b> thời gian</li>
+        <li>🏆 Thắng: <b>💎 45</b> + (80% <b>🪙 2.000</b> hoặc 20% <b>💎 10</b>)</li>
+        <li>💔 Thua: rút &lt;50% máu → <b>💎 5 + 🪙 500</b> · rút ≥50% → <b>💎 10 + 🪙 700</b></li>
+      </ul>
+      <p class="boss-fee">PHÍ VÀO MỖI LƯỢT: 🔑 1 KEY HOẶC 💎 ${BOSS_CFG.crystalFee} CRYSTAL</p>
+      <div class="boss-pay">
+        <button class="btn btn-play btn-small" type="button" data-boss="key" ${keyOk ? '' : 'disabled'}><span>🔑 DÙNG 1 KEY</span></button>
+        <button class="btn btn-play btn-small" type="button" data-boss="crystal" ${crystalOk ? '' : 'disabled'}><span>💎 ${BOSS_CFG.crystalFee} CRYSTAL</span></button>
+      </div>
+      <p class="mini-own">Đang có: 🔑 ${miniKeys}/3 · 💎 ${fmt(crystals)}</p>`;
+  }
+  miniBody.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-boss]');
+    if (!btn || btn.disabled) return;
+    const act = btn.dataset.boss;
+    if (act === 'unlock') {
+      if (bossUnlocked || miniKeys < BOSS_CFG.unlockKeys) return;
+      miniKeys -= BOSS_CFG.unlockKeys; // trừ 3 Key, mở khóa vĩnh viễn
+      bossUnlocked = true;
+      saveMeta();
+      updateLobby();
+      renderMini();
+      playUiSound('claim');
+    } else {
+      startBossRun(act);
+    }
+  });
+
+  // ---------- Mở popup ----------
+  // V22: popup NHIỆM VỤ có 3 tab — Hằng ngày · Thử thách · Thành tựu
+  let questTab = 'daily';
+  function selectQuestTab(name) {
+    if (name === 'challenge' && !challengeUnlocked()) {
+      showToast(`🔒 Thử Thách mở khóa khi đạt kỷ lục ${fmt(CHALLENGE_UNLOCK)} điểm (hiện tại: ${fmt(best)}).`);
+      return;
+    }
+    questTab = name;
+    document.querySelectorAll('#questModal [data-qtab]').forEach(t => t.classList.toggle('is-selected', t.dataset.qtab === name));
+    $('qPaneDaily').hidden = name !== 'daily';
+    $('qPaneChallenge').hidden = name !== 'challenge';
+    $('qPaneAchv').hidden = name !== 'achv';
+    if (name === 'daily') renderQuests();
+    else if (name === 'challenge') renderChallenge();
+    else renderAchievements();
+  }
+  document.querySelectorAll('#questModal [data-qtab]').forEach(t => t.addEventListener('click', () => selectQuestTab(t.dataset.qtab)));
+  function openQuestModal(tab = 'daily') { openModal(questModal, $('openQuests')); selectQuestTab(tab); }
+  function openGachaModal() { renderGacha(false); openModal(gachaModal, $('openGacha')); }
+  // V22: Túi đồ nằm trong Shop (tab thứ 4)
+  function openShopModal(tab) {
+    if (tab) shopTab = tab;
+    renderShop();
+    openModal(shopModal, $('openShop'));
+    shopSay('greet');
+  }
+  function openMiniModal() { renderMini(); openModal(miniModal, $('openMini')); }
+  $('openQuests').addEventListener('click', () => openQuestModal());
+  $('openGacha').addEventListener('click', () => openGachaModal());
+  $('openShop').addEventListener('click', () => openShopModal());
+  $('openMini').addEventListener('click', openMiniModal);
+  equipStrip.addEventListener('click', () => openShopModal('bag'));
+
+  let achievedRecord = false;
+  let score = 0;
+  let state = 'ready'; // ready | running | over
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+  let groundY = 0;
+  let lastTime = 0;
+  let worldTime = 0;
+  let worldDistance = 0; // Integrated travel distance keeps every scrolling layer synced to speed.
+  let speed = 330;
+  let spawnTimer = 1.05;
+  let obstacles = [];
+  let clouds = [];
+  let particles = [];
+  // ---------- Âm thanh: Web Audio API + nhạc nền MP3 ----------
+  // 3 chế độ của nút loa: bật tất cả -> tắt nhạc -> tắt toàn bộ.
+  let audioMode = 'all'; // all | music-off | mute
+  try {
+    const savedAudioMode = localStorage.getItem('duyMapChayDiAudioMode');
+    if (['all', 'music-off', 'mute'].includes(savedAudioMode)) audioMode = savedAudioMode;
+  } catch (_) { /* storage may be disabled */ }
+  let musicOn = audioMode !== 'mute' && audioMode !== 'music-off';
+  let sfxOn = audioMode !== 'mute';
+  let audioContext = null;
+  let musicAudio = null;
+  let sfxGain = null;
+  const MUSIC_VOLUME = 0.5;
+  // Âm lượng SFX: nâng lên 0.25 - 0.45 để nghe rõ trên loa điện thoại.
+  const sfxLevel = (v) => Math.min(0.45, Math.max(0.25, v * 10));
+  let musicPausedByVisibility = false;
+  let screenShake = 0;
+  let routeStyle = 0;
+  let overheadChance = 0.23;
+  let elapsedRun = 0;
+  let skillActiveUntil = 0;
+  let skillTriggered = false;
+  let nextSkillAt = 36;
+  let lightningStrikes = [];
+  let knockedObstacles = [];
+  let trieuMilestones = new Set();
+  let lightningStrikeTimer = 0;
+  let nextScaffoldX = 0;
+  let cityMode = false;
+  let cityElapsed = 0;
+  // V22: Map Bãi Biển + kỹ năng Ném chổi của Tân
+  let beachMode = false;
+  // V23: lộ trình map 3.000m → 6.000m → 10.000m, bốc thăm sẵn từ đầu ván bằng window.gameRand()
+  // (mỗi phần tử: 'city' | 'beach' | 'sunset'). Solo 1v1 dùng chung seed nên hai người luôn cùng lộ trình.
+  // ===== [GĐ1] LỘ TRÌNH MAP MỞ RỘNG =====
+  const MAP_MARKS = [3000, 6000, 10000];
+  const ROUTE_LOOP_STEP = 4000;     // sau 10.000m: cứ +4.000m đổi map (14.000m, 18.000m...)
+  const ROUTE_EXTRA_STAGES = 14;    // số mốc lặp bốc thăm sẵn
+  const mapMarkAt = (stage) => stage < MAP_MARKS.length
+    ? MAP_MARKS[stage]
+    : MAP_MARKS[MAP_MARKS.length - 1] + (stage - MAP_MARKS.length + 1) * ROUTE_LOOP_STEP;
+  let mapRoute = ['city', 'city', 'city'];
+  let routeStage = 0;      // số mốc map đã qua
+  let beachSunset = false; // Bãi Biển Hoàng Hôn
+  let cityNight = false;   // [GĐ1] Night City (luôn đi kèm cityMode = true)
+  let nightPad = 0;        // [GĐ1] nghỉ thêm sau khi sinh xe buýt đêm
+  let villageMode = false; // [GĐ2] Map Làng Quê Miền Tây
+  let villageDecor = [];   // [GĐ2] cây dừa trang trí (thân + tán không va chạm) chạy theo nền
+  let windDir = 0, windTimer = 0, windCool = 8, windStreaks = [];   // [GĐ3-B2] trạng thái gió làng quê
+  let rainbowItems = [], rainbowUntil = 0;   // [L4] Sò Nui 7 Màu: item trên map + thời điểm hết bất tử cầu vồng
+  // RACING: cờ chế độ Đua Tốc Độ (racing.js điều khiển). Bật: cấm vật phẩm hỗ trợ, chết → quay về 0m thay vì Game Over.
+  let racingMode = false;
+  let waterPits = [];
+  let brooms = [];
+  // V24 — Ông Hai · Lào thủ tu tiên
+  let smokeRings = [];
+  let onghaiRolled = true;
+  let onghaiGold = false;
+  let onghaiFlying = false;
+  let onghaiLanding = false;
+  let onghaiRingTimer = 0;
+  let onghaiPuffTimer = 0;
+  let broomTimer = 0;
+  let platforms = [];
+  let groundPlatform = null;
+  let lightningFlash = 0;
+  let lightningCooldown = 0;
+  let quangPassiveBoost = false;
+  let quangBikePhase = 0;
+  let quangStartedAt = 0;
+  let quangWasActive = false;
+  let quangSpeedApplied = false;
+  let muRatCloneX = -9999;
+  let squadY = [0, 0]; // độ cao (có trễ) của 2 bản sao Duy trong kỹ năng Chi viện: [phía trước, phía sau]
+  let squadGuards = 0; // V23.1: số đồng đội hộ vệ còn lại sau Chi viện (tối đa 2)
+  let squadConverted = false; // bảo đảm chỉ chuyển Chi viện thành hộ vệ một lần mỗi lần bật chiêu
+  const squadSprite = new Image();
+  squadSprite.onerror = () => console.error('Không tải được ảnh Duy hộ tống: assets/nhan-vat.png');
+  squadSprite.src = 'assets/nhan-vat.png';
+  // [SPRITE] Sò Nui vật cản (Night City) và Sò Nui 7 Màu (item)
+  const soNuiSprite = new Image();
+  soNuiSprite.onerror = () => console.error('Không tải được ảnh: assets/so-nui.png');
+  soNuiSprite.src = 'assets/so-nui.png';
+  const soNuiRainbowSprite = new Image();
+  soNuiRainbowSprite.onerror = () => console.error('Không tải được ảnh: assets/so-nui-7mau.png');
+  soNuiRainbowSprite.src = 'assets/so-nui-7mau.png';
+  let cityBuildings = [];
+
+
+  const player = {
+    x: 72,
+    y: 0,
+    width: 54,
+    height: 86,
+    velocityY: 0,
+    gravity: 1900,
+    jumpPower: 690,
+    onGround: true,
+    runPhase: 0,
+    airJumpsLeft: 0, // V20: số lượt nhảy kép còn lại trên không (Tiến, V24.1: cả Skin)
+    floaty: false    // V20 Lv3: đang lướt nhẹ sau khi nhảy kép (rơi chậm hơn 15%) — V24.1: áp dụng cả Skin
+  };
+  const TIEN_AIR_JUMPS = 1;
+  // Số lượt nhảy trên không: Tiến có Nhảy kép ở cả bản gốc lẫn Skin Tiến Trọng Duy (V24.1).
+  const airJumpsMax = () => (selectedCharacter === 'tien' ? TIEN_AIR_JUMPS : 0); // V24.1: cả bản gốc lẫn Skin Tiến Trọng Duy đều có Nhảy kép
+  const trongSprite = new Image(); // V20: Trọng "Sét" trong đội hình Anh em "Sét"
+  trongSprite.onerror = () => console.error('Không tải được ảnh Trọng "Sét": assets/trong-set.png');
+  trongSprite.src = 'assets/trong-set.png';
+
+  // Bộ sinh số ngẫu nhiên cho bản đồ: mặc định = Math.random; Solo 1v1 tạm thay bằng Mulberry32(seed).
+  window.gameRand = Math.random;
+  const random = (min, max) => min + window.gameRand() * (max - min);
+
+  // ===== [GĐ1] BỐC THĂM LỘ TRÌNH (đúng 1 lần gameRand / mốc → Solo 1v1 không lệch seed) =====
+  const ALL_MAPS = ['city', 'beach', 'night', 'sunset', 'village'];   // [GĐ2] thêm village
+  const ROUTE_WEIGHTS = {
+    0: { city: 30, beach: 30, village: 25, night: 7.5, sunset: 7.5 },   // [GĐ2] 3.000m
+    1: { night: 30, sunset: 30, village: 20, city: 10, beach: 10 }      // [GĐ2] 6.000m
+  };                                                                     // 10.000m trở đi: đều nhau (5 map)
+  function drawRouteStage(stage, prev) {
+    const w = ROUTE_WEIGHTS[stage] || { city: 1, beach: 1, night: 1, sunset: 1, village: 1 };   // [GĐ2]
+    const pool = ALL_MAPS.filter(k => k !== prev);        // chống lặp map liền trước
+    const total = pool.reduce((s, k) => s + (w[k] || 0), 0);
+    let r = window.gameRand() * total;
+    for (const k of pool) { r -= (w[k] || 0); if (r < 0) return k; }
+    return pool[pool.length - 1];
+  }
+  // Số ngẫu nhiên cho hiệu ứng thị giác (mây, hạt, rung màn hình...) — KHÔNG dùng gameRand để không lệch seed.
+  const vfxRandom = (min, max) => min + Math.random() * (max - min);
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  function fitCanvas() {
+    // clientWidth/Height không bị ảnh hưởng bởi hiệu ứng scale khi chuyển màn hình
+    const box = { width: stage.clientWidth, height: stage.clientHeight };
+    if (box.width < 2 || box.height < 2) return; // màn hình chơi đang ẩn
+    const aspect = clamp(box.width / box.height, MIN_ASPECT, MAX_ASPECT);
+    let cssW = box.width;
+    let cssH = cssW / aspect;
+    if (cssH > box.height) { cssH = box.height; cssW = cssH * aspect; }
+    canvas.style.width = `${cssW}px`;
+    canvas.style.height = `${cssH}px`;
+    height = clamp(LOGICAL_TARGET_W / aspect, LOGICAL_MIN_H, LOGICAL_MAX_H);
+    width = Math.round(height * aspect);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    const k = (cssW * dpr) / width;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    groundY = height - Math.max(32, height * 0.14);
+
+    player.height = clamp(height * 0.31, 68, 100);
+    const ratio = sprite.naturalWidth && sprite.naturalHeight
+      ? sprite.naturalWidth / sprite.naturalHeight
+      : 0.63;
+    player.width = player.height * ratio;
+    player.x = clamp(width * 0.105, 28, 95);
+    if (player.onGround || state !== 'running') player.y = groundY - player.height;
+    makeClouds();
+  }
+
+  function makeClouds() {
+    clouds = [];
+    const count = Math.max(4, Math.ceil(width / 145));
+    for (let i = 0; i < count; i++) {
+      clouds.push({ x: (i / count) * width + vfxRandom(-30, 30), y: vfxRandom(24, height * 0.37), scale: vfxRandom(0.65, 1.25), speed: vfxRandom(7, 18) });
+    }
+  }
+
+  function formatScore(value) { return String(Math.floor(value)).padStart(5, '0'); }
+
+  let hudCache = { score: '', coins: '' };
+  function updateHud() {
+    const sc = formatScore(score);
+    if (sc !== hudCache.score) { hudCache.score = sc; scoreValue.textContent = sc; }
+    const rc = `+${fmt(runCoins)}`;
+    if (rc !== hudCache.coins) { hudCache.coins = rc; runCoinValue.textContent = rc; }
+  }
+  function updateShield(hit = false) {
+    const has = upgrades[selectedCharacter] >= 4 || runItems.shield;
+    shieldIcon.hidden = !has;
+    shieldIcon.classList.toggle('is-used', has && spareHits <= 0);
+    if (hit) {
+      shieldIcon.classList.remove('is-hit');
+      void shieldIcon.offsetWidth;
+      shieldIcon.classList.add('is-hit');
+    }
+  }
+  // Duy Quân đội: đồng đội hộ vệ đỡ đòn trước Giáp Lv4.
+  function consumeSquadGuard() {
+    if (selectedCharacter !== 'duyquandoi' || squadGuards <= 0) return false;
+    squadGuards = Math.max(0, squadGuards - 1);
+    burst(player.x + player.width * 0.5, player.y + player.height * 0.5, 18, false, '#9be4ff');
+    showToast(`ĐỒNG ĐỘI HỘ VỆ! Đã đỡ đòn thay, còn ${squadGuards}/2 đồng đội.`);
+    playTone(310, 0.16, 'triangle', 0.045);
+    return true;
+  }
+  function showGameOver() {
+    if (bossMode && bossResult) { showBossResult(); return; }
+    overStats.hidden = false;
+    overBest.hidden = false;
+    bossResultEl.hidden = true;
+    retryText.textContent = 'CHƠI LẠI';
+    backLobbyButton.textContent = 'VỀ SẢNH / NÂNG CẤP';
+    overPanel.classList.toggle('is-record', achievedRecord);
+    overKicker.textContent = achievedRecord ? 'KỶ LỤC MỚI' : 'KẾT THÚC LƯỢT CHẠY';
+    overTitle.textContent = achievedRecord ? 'Kỷ lục mới!' : 'Ôi, vấp mất rồi!';
+    overScore.textContent = formatScore(score);
+    overCoin.textContent = `+${fmt(runCoins)}`;
+    overBest.textContent = `KỶ LỤC: ${formatScore(best)}`;
+    gameOver.hidden = false;
+  }
+
+  function tryFullscreen() {
+    // Chỉ thử trên thiết bị cảm ứng; bọc an toàn để iOS Safari (không hỗ trợ) không báo lỗi.
+    try {
+      if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches)) return;
+      const el = document.documentElement;
+      if (document.fullscreenElement || document.webkitFullscreenElement) return;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return;
+      const result = req.call(el);
+      if (result && typeof result.catch === 'function') result.catch(() => {});
+    } catch (_) { /* không hỗ trợ fullscreen */ }
+  }
+
+  function startGame(mode = 'score') {
+    tryFullscreen();
+    unlockAudioFromGesture();
+    closeModal();
+    clearTimeout(overTimer);
+    gameOver.hidden = true;
+    showScreen('game');
+    fitCanvas();
+    bossMode = mode === 'boss';
+    gameScreen.classList.toggle('boss-mode', bossMode);
+    state = 'running';
+    score = 0;
+    runCoins = 0;
+    consumeEquippedItems(bossMode);
+    runSkillCount = 0;
+    runBusHits = 0;
+    sliceFX = [];
+    slashFX = [];
+    knockedObstacles = [];
+    trieuMilestones = new Set();
+    lastCoinScore = 0;
+    bonusMilestone = 0;
+    spareHits = (upgrades[selectedCharacter] >= 4 ? 1 : 0) + (runItems.shield ? 1 : 0);
+    runMaxSpare = spareHits; // giáp tối đa đầu trận
+    phatRage = 0;
+    phatNextMark = 250;
+    quangPassiveBoost = false;
+    quangBikePhase = 0;
+    quangStartedAt = 0;
+    quangWasActive = false;
+    quangSpeedApplied = false;
+    phatEffect = null;
+    phatFx = [];
+    achievedRecord = false;
+    speed = bossMode ? BOSS_CFG.scroll : Math.min(width * 0.63, 380);
+    routeStyle = Math.floor(window.gameRand() * 4);
+    overheadChance = [0.18, 0.24, 0.30, 0.34][routeStyle];
+    // [GĐ1] bốc thăm toàn bộ lộ trình (3 mốc đầu + các mốc lặp sau 10.000m)
+    {
+      mapRoute = [];
+      let prev = 'desert';
+      for (let s = 0; s < MAP_MARKS.length + ROUTE_EXTRA_STAGES; s++) {
+        prev = drawRouteStage(s, prev);
+        mapRoute.push(prev);
+      }
+      routeStage = 0;
+      beachSunset = false;
+    }
+    spawnTimer = random(0.8, 1.25);
+    obstacles = [];
+    particles = [];
+    screenShake = 0;
+    player.velocityY = 0;
+    player.onGround = true;
+    player.y = groundY - player.height;
+    groundPlatform = null;
+    worldTime = 0;
+    worldDistance = 0;
+    elapsedRun = 0;
+    skillActiveUntil = 0;
+    skillTriggered = false;
+    squadGuards = 0;
+    squadConverted = false;
+    squadY = [player.y, player.y];
+    nextSkillAt = hasTimedSkill() ? skillInterval() : Infinity; // Tiến gốc: Nhảy kép không có chu kỳ
+    player.airJumpsLeft = airJumpsMax();
+    player.floaty = false;
+    muRatCloneX = -9999;
+    lightningStrikes = [];
+    cityMode = false;
+    cityNight = false; nightPad = 0;   // [GĐ1]
+    rainbowUntil = 0; rainbowItems = [];   // [L4]
+    villageMode = false; villageDecor = []; windDir = 0; windTimer = 0; windCool = 8; windStreaks = [];   // [GĐ3-B2]   // [GĐ2]
+    beachMode = false;
+    waterPits = [];
+    brooms = [];
+    broomTimer = 0;
+    smokeRings = []; onghaiRolled = true; onghaiGold = false; onghaiFlying = false; onghaiLanding = false; onghaiRingTimer = 0; onghaiPuffTimer = 0;
+    cityElapsed = 0;
+    platforms = [];
+    lightningFlash = 0;
+    lightningCooldown = 0;
+    cityBuildings = [];
+    updateShield(false);
+    renderHudItems();
+    initBossRun();
+    if (bossMode) {
+      const eqMagnet = equipped.magnet && inventory.magnet > 0 ? ' · ×2 Coin không áp dụng ở trận Boss' : '';
+      showToast(`ĐÁNH BOSS! Lụm hòm 🚀💣 để phản công, né đạn theo đường laser đỏ.${eqMagnet}${runItemsToast() ? ' · ' + runItemsToast() : ''}`);
+    } else {
+      showToast(runItemsToast() || (selectedCharacter === 'phat' ? 'PHÁT: vượt chướng ngại & chạy 250m để tích Nộ — đủ Nộ thì bấm nút ⚡ hoặc phím E / S!' : selectedCharacter === 'quang' ? 'QUANG: GOD RIDER là kỹ năng chủ động — bấm nút mô tô hoặc E / S khi sẵn sàng!' : 'Tập trung nhé — City hoặc Bãi Biển mở ở 3.000 điểm. Mỗi nhân vật có tuyệt chiêu riêng.'));
+    }
+    updateHud();
+  }
+
+  function endGame() {
+    if (state !== 'running') return;
+    if (racingMode && window.Racing?.onFall(Math.floor(score))) return; // RACING: chết → quay về 0m, không Game Over
+    if (bossMode) { finishBoss(false); return; } // hết tim: tính thưởng an ủi theo % máu Boss đã rút
+    state = 'over';
+    screenShake = 0.22;
+    achievedRecord = Math.floor(score) > best;
+    if (achievedRecord) {
+      best = Math.floor(score);
+      try { localStorage.setItem('duyMapChayDiBest', String(best)); } catch (_) { /* storage may be disabled */ }
+      lbSubmitScore(best);
+    }
+    window.League?.onRunEnd(score);
+    // V22: sự kiện cộng đồng (event.js) — không tính trận Solo 1v1. V24.1: tham số thứ 2 (tùy chọn) phục vụ Sự kiện 20/11
+    window.LimitedEvent?.onRunEnd(score, { character: selectedCharacter, tienOriginal: selectedCharacter === 'tien' && !tienSkinOn('tien'), skillCount: runSkillCount });
+    burst(player.x + player.width * 0.6, player.y + player.height * 0.75, 12);
+    commitQuestsRun(score);
+    commitChallengeRun(score);
+    achv.totalMeters += Math.floor(score);
+    achv.totalBusHits += runBusHits;
+    saveAchv();
+    overAt = performance.now();
+    updateHud();
+    updateLobby();
+    renderCharacterCards();
+    playTone(110, 0.16, 'sawtooth', 0.04);
+    overTimer = setTimeout(() => { if (state === 'over') showGameOver(); }, 550);
+  }
+
+  function jump(isRepeat = false) {
+    if (state !== 'running') return;
+    if (selectedCharacter === 'quang' && quangActiveNow()) return;
+    if (selectedCharacter === 'onghai' && onghaiActiveNow()) return;
+    if (player.onGround || groundPlatform) {
+      player.velocityY = -player.jumpPower;
+      player.onGround = false;
+      groundPlatform = null;
+      player.floaty = false;
+      burst(player.x + player.width * 0.35, player.y + player.height, 5, true);
+      playTone(470, 0.07, 'square', 0.025);
+    } else if (!isRepeat && player.airJumpsLeft > 0 && airJumpsMax() > 0) {
+      // NHẢY KÉP (Tiến, cả bản gốc lẫn Skin): thêm 1 lần nhảy trên không, kể cả khi vừa chạy hụt khỏi mép bệ đỡ.
+      player.airJumpsLeft--;
+      const lv = upgrades.tien || 1;
+      player.velocityY = -player.jumpPower * (lv >= 2 ? 1.12 : 1); // Lv2: +12% lực bật nhảy kép
+      player.floaty = lv >= 3;                                      // Lv3: rơi chậm hơn 15% sau khi nhảy kép
+      burst(player.x + player.width * 0.5, player.y + player.height, 9, false, '#8fe3ff');
+      playTone(700, 0.09, 'square', 0.03);
+    }
+  }
+
+  // Nhạc nền phát trực tiếp bằng HTMLAudioElement (không qua Web Audio API).
+  function ensureMusic() {
+    if (!musicAudio) {
+      musicAudio = new Audio('assets/Thangbanhuyenthoaibeat.mp3');
+      musicAudio.loop = true;
+      musicAudio.preload = 'auto';
+      musicAudio.volume = MUSIC_VOLUME;
+    }
+    return musicAudio;
+  }
+
+  // Web Audio API chỉ dùng cho hiệu ứng (SFX).
+  function ensureAudio() {
+    ensureMusic();
+    if (!audioContext) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      audioContext = new AudioCtx();
+      sfxGain = audioContext.createGain();
+      sfxGain.gain.value = sfxOn ? 0.9 : 0;
+      sfxGain.connect(audioContext.destination);
+    }
+    if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+    return audioContext;
+  }
+
+  function startBackgroundMusic() {
+    if (!musicOn || document.hidden) return;
+    ensureAudio();
+    if (!musicAudio) return;
+    musicAudio.volume = MUSIC_VOLUME;
+    const attempt = musicAudio.play();
+    if (attempt && typeof attempt.catch === 'function') {
+      attempt.catch(() => {
+        // Autoplay bị chặn thì lần chạm/phím tiếp theo sẽ thử phát lại.
+      });
+    }
+  }
+
+  function unlockAudioFromGesture() {
+    if (!musicOn && !sfxOn) return;
+    ensureAudio();
+    if (musicOn && musicAudio && musicAudio.paused) {
+      musicPausedByVisibility = false;
+      startBackgroundMusic();
+    }
+  }
+
+  function updateSoundButton() {
+    const icon = audioMode === 'all' ? '🔊' : (audioMode === 'music-off' ? '🔉' : '🔇');
+    const label = audioMode === 'all' ? 'BẬT' : (audioMode === 'music-off' ? 'NHẠC OFF' : 'TẮT HẾT');
+    soundIcon.textContent = icon;
+    soundText.textContent = label;
+    soundButton.setAttribute('aria-pressed', String(audioMode !== 'mute'));
+    soundButton.setAttribute('aria-label', `Chế độ âm thanh: ${label}. Chạm để đổi chế độ`);
+    soundButton.title = `Chạm để đổi chế độ âm thanh (hiện tại: ${label})`;
+  }
+
+  function setAudioMode(mode) {
+    audioMode = mode;
+    musicOn = mode === 'all';
+    sfxOn = mode !== 'mute';
+    try { localStorage.setItem('duyMapChayDiAudioMode', mode); } catch (_) { /* storage may be disabled */ }
+    if (audioContext && sfxGain) sfxGain.gain.value = sfxOn ? 0.9 : 0;
+    if (musicAudio) {
+      if (musicOn) musicAudio.volume = MUSIC_VOLUME;
+      else musicAudio.pause();
+    }
+    if (musicOn) startBackgroundMusic();
+    updateSoundButton();
+  }
+
+  function playTone(frequency, duration, type = 'sine', volume = 0.03) {
+    if (!sfxOn) return;
+    const audio = ensureAudio();
+    if (!audio || !sfxGain) return;
+    try {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(frequency, audio.currentTime);
+      gain.gain.setValueAtTime(sfxLevel(volume), audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(sfxGain);
+      osc.start();
+      osc.stop(audio.currentTime + duration);
+    } catch (_) { /* audio is optional */ }
+  }
+
+  function playUiSound(kind = 'tap') {
+    if (!sfxOn) return;
+    const audio = ensureAudio();
+    if (!audio || !sfxGain) return;
+    const now = audio.currentTime;
+    const notes = {
+      tap: [[520, 0.045, 'sine', 0.018]],
+      select: [[520, 0.055, 'triangle', 0.026], [760, 0.075, 'triangle', 0.022]],
+      upgrade: [[440, 0.07, 'triangle', 0.025], [660, 0.08, 'triangle', 0.03], [880, 0.11, 'sine', 0.026]],
+      gacha: [[240, 0.10, 'sawtooth', 0.022], [360, 0.12, 'triangle', 0.025], [540, 0.15, 'sine', 0.03]],
+      open: [[420, 0.055, 'sine', 0.018], [620, 0.07, 'triangle', 0.02]],
+      close: [[480, 0.065, 'sine', 0.018], [330, 0.07, 'sine', 0.016]],
+      claim: [[660, 0.08, 'triangle', 0.025], [990, 0.12, 'sine', 0.03]]
+    };
+    (notes[kind] || notes.tap).forEach(([freq, duration, type, volume], index) => {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      const startAt = now + index * 0.065;
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startAt);
+      gain.gain.setValueAtTime(sfxLevel(volume), startAt);
+      gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+      osc.connect(gain);
+      gain.connect(sfxGain);
+      osc.start(startAt);
+      osc.stop(startAt + duration);
+    });
+  }
+
+  // Mọi nút giao diện đều có phản hồi; các thao tác đặc biệt có âm riêng.
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('button, [role="tab"]');
+    if (!button || button.disabled || button === soundButton) return;
+    if (button.matches('[data-select], [data-equip]')) playUiSound('select');
+    else if (button.matches('[data-upgrade]')) playUiSound('upgrade');
+    else if (button.id === 'openX1' || button.id === 'openX5') playUiSound('gacha');
+    else if (button.matches('[data-achv-claim]')) return; // âm 'claim' được phát trong handler nhận thưởng
+    else if (button.matches('[data-claim], #questBonus')) playUiSound('claim');
+    else if (button.matches('.close-btn, [data-close]')) playUiSound('close');
+    else if (button.matches('.rail-btn, .tab, .stab, .btn, .card-btn, .equip-strip')) playUiSound('open');
+    else playUiSound('tap');
+  });
+
+  // Bắt tương tác đầu tiên để mở khóa AudioContext và phát nhạc theo Autoplay Policy.
+  // Nếu musicOn = true mà nhạc đang paused thì phát ngay ở lần chạm/phím đầu tiên, ở bất kỳ đâu.
+  // Một số trình duyệt di động chỉ coi touchend/pointerup/click là "user activation",
+  // nên đăng ký thêm các sự kiện này để play() chắc chắn được chấp nhận.
+  const firstGestureHandler = (event) => {
+    // Không bật nhạc thoáng qua nếu cú chạm đầu tiên chính là nút loa.
+    if (event.target && event.target.closest && event.target.closest('#soundButton')) return;
+    unlockAudioFromGesture();
+  };
+  ['pointerdown', 'touchstart', 'pointerup', 'touchend', 'click', 'keydown'].forEach((type) => {
+    document.addEventListener(type, firstGestureHandler, { capture: true, passive: true });
+  });
+
+  function burst(x, y, count, dust = false, color = null) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x, y,
+        vx: vfxRandom(dust ? -100 : -145, dust ? 45 : 145),
+        vy: vfxRandom(dust ? -60 : -155, dust ? -12 : 45),
+        life: vfxRandom(0.22, 0.48),
+        maxLife: 0.48,
+        size: vfxRandom(2, dust ? 4 : 5),
+        dust,
+        color
+      });
+    }
+  }
+
+  // ===== [GĐ1] VẬT CẢN NIGHT CITY =====
+  const NIGHT_BUS_MULT = 1.45, NIGHT_CAN_MULT = 1.35, NIGHT_BUS_WAIT = 0.45;
+  function addNightObstacle() {
+    // Bốc đủ số lần gameRand TRƯỚC khi return để Solo 1v1 không lệch seed
+    const roll = window.gameRand(), r1 = window.gameRand(), r2 = window.gameRand();
+    if (obstacles.some(o => o.nightBus && o.wait > 0)) return;   // xe buýt đang chờ ở rìa phải
+
+    if (roll < 0.30) {                                           // xe buýt lao nhanh
+      if (obstacles.some(o => o.x > width * 0.35)) return;       // tránh chồng lên vật cản mới sinh
+      const h = clamp(height * (0.34 + 0.08 * r1), 72, 118);
+      const ratio = busSprite.naturalWidth && busSprite.naturalHeight ? busSprite.naturalWidth / busSprite.naturalHeight : 1.42;
+      const w = h * ratio;
+      obstacles.push({ x: width - w - 6, y: groundY - h, w, h, type: 'bus', passed: false, nightBus: true, wait: NIGHT_BUS_WAIT });
+      nightPad = 0.9;
+      return;
+    }
+    if (roll < 0.55) {                                           // lon bia bay nhanh, tầm đầu (phải chạy luồn, không nhảy)
+      const h = 45 + 17 * r1, w = h * (0.68 + 0.16 * r2);
+      obstacles.push({ x: width + 28, y: groundY - player.height - h - 4, w, h, type: 'can', lane: 'high',   // [GĐ1-sửa] hạ từ -16 xuống -4
+        passed: false, nightCan: true, fixedY: true, bobOffset: 0, bobSpeed: 0 });
+      return;
+    }
+    // Sò Nui: đống bánh chiên vàng giòn sát đất (hitbox thấp như thùng gỗ)
+    const sc = 0.9 + 0.25 * r1, cols = r2 < 0.5 ? 3 : 4;
+    const cell = (cols === 4 ? 12 : 14) * sc;
+    const w = cols * cell, h = (cols - 1) * cell * 0.78 + cell * 0.86;
+    obstacles.push({ x: width + 28, y: groundY - h, w, h, type: 'sonui', passed: false, cols, cell, seed: Math.floor(r2 * 97) });
+  }
+
+  // ===== [GĐ2] VẬT CẢN LÀNG QUÊ: sông lớn · cây dừa (có/không chùm) =====
+  // ===== [GĐ3] VẬT CẢN LÀNG QUÊ: sông lớn · cây dừa · xe máy cày (+ combo sông sau máy cày) =====
+  function addVillageObstacle() {
+    // Bốc đủ số lần gameRand TRƯỚC khi xử lý để Solo 1v1 không lệch seed
+    let roll = window.gameRand();
+    const r1 = window.gameRand(), r2 = window.gameRand(), r3 = window.gameRand(), r4 = window.gameRand();
+    // [GĐ3-B2] Gió ngược: không sinh Sông lớn (lượt sông được đổi sang cây dừa có chùm)
+    if (windDir === -1 && roll < 0.30) roll = 0.30;
+    // [GĐ3-B1] Combo: xe máy cày + sông lớn ngay phía trước (35%), không áp dụng khi gió ngược
+    const comboPlanned = roll >= 0.52 && roll < 0.77 && windDir !== -1 && r3 < 0.35;
+    let spawnX = width + 28;
+    const hazards = [...obstacles, ...waterPits];
+    if (hazards.length) {
+      const prev = hazards.reduce((a, b) => (a.x + a.w > b.x + b.w ? a : b));
+      const minGap = comboPlanned ? 445 : 170 + speed * 0.12;   // [L4] combo: 445 để sông không sát vật cản trước   // combo cần thêm chỗ cho sông nằm trước máy cày
+      spawnX = Math.max(spawnX, prev.x + prev.w + minGap);
+    }
+
+    // [GĐ3-A1] Sông lớn: 135–165px (trước: 155–185px)
+    if (roll < 0.30) {
+      waterPits.push({ x: spawnX, w: 135 + 30 * r1, passed: false, absorbed: false, beachNeed: 'jump' });
+      return;
+    }
+
+    // [GĐ3-A2] Cây dừa CÓ chùm: thân là decor, tán là obstacle; decorRef liên kết hai phần
+    if (roll < 0.52) {
+      const w = 74 + 18 * r1, h = 46;
+      const y = groundY - player.height - 14 - h;             // tán cao hơn đầu 14px: chạy dưới an toàn, nhảy là đụng
+      const decor = { x: spawnX + w / 2, top: y + h * 0.35, lean: 0, crown: false, s: w / 84, phase: r2 * 6.28 };
+      villageDecor.push(decor);
+      obstacles.push({ x: spawnX, y, w, h, type: 'coconutTree', hasFruit: true, passed: false, beachNeed: 'stay', decorRef: decor });
+      return;
+    }
+
+    // [GĐ3-B1] Xe máy cày: 25%
+    if (roll < 0.77) {
+      const w = 104 + 14 * r1, h = 70 + 8 * r2;
+      const tractor = { x: spawnX, y: groundY - h, w, h, type: 'tractor', passed: false, beachNeed: 'jump' };
+      obstacles.push(tractor);
+      if (comboPlanned) {
+        // Sông nằm phía trước máy cày (bên trái đầu xe), cách 40–60px, rộng 145–165px
+        const gap = 40 + 20 * r4, rw = 145 + 20 * r1;
+        waterPits.push({ x: tractor.x - gap - rw, w: rw, passed: false, absorbed: false, beachNeed: 'jump' });
+      }
+      return;
+    }
+
+    // Cây dừa KHÔNG chùm: chỉ là cảnh trang trí, không có hitbox
+    villageDecor.push({ x: spawnX + 20 + 30 * r1, top: groundY - 150 - 40 * r2, lean: (r1 - 0.5) * 30, crown: true, s: 0.9 + 0.3 * r1, phase: r2 * 6.28 });
+  }
+
+  function updateVillageDecor(dt) {
+    villageDecor.forEach(d => { d.x -= speed * dt; });
+    villageDecor = villageDecor.filter(d => d.x > -160 && !d.dead);   // [GĐ3-A2] bỏ thân đã bị phá tán
+  }
+
+  function addObstacle() {
+    // [L4] Sò Nui 7 Màu: 5% mỗi lần sinh vật cản (không Boss/Racing). Dùng gameRand để đồng bộ Solo 1v1.
+    const rainbowRoll = window.gameRand(), rainbowDur = window.gameRand();
+    if (!bossMode && !racingMode && rainbowRoll < 0.05) {
+      const sx = width + 28, sw = 30;
+      // Cách xa vật cản khác ít nhất 100px
+      const clear = ![...obstacles, ...waterPits, ...rainbowItems].some(o => o.x < sx + sw + 100 && o.x + o.w > sx - 100);
+      if (clear) {
+        rainbowItems.push({ x: sx, y: groundY - 46 - 14, w: sw, h: 28, dur: 10 + rainbowDur * 10, phase: vfxRandom(0, 6.28) });
+        return;
+      }
+    }
+    if (beachMode) { addBeachObstacle(); return; }
+    if (cityNight) { addNightObstacle(); return; }   // [GĐ1]
+    if (villageMode) { addVillageObstacle(); return; }   // [GĐ2]
+    const spawnX = width + 28;
+    const nearScaffold = (x, w, margin = 76) => platforms.some(p =>
+      x < p.x + p.w + margin && x + w > p.x - margin
+    );
+
+    // City: increase bus frequency, but keep each bus separate from scaffold routes.
+    if (cityMode && window.gameRand() < 0.28) {
+      const h = clamp(height * random(0.34, 0.42), 72, 118);
+      const ratio = busSprite.naturalWidth && busSprite.naturalHeight
+        ? busSprite.naturalWidth / busSprite.naturalHeight : 1.42;
+      const w = h * ratio;
+      if (!nearScaffold(spawnX, w, 64)) {
+        obstacles.push({ x: spawnX, y: groundY - h, w, h, type: 'bus', passed: false });
+      }
+      return;
+    }
+
+    const roll = window.gameRand();
+    // Floating cans now also appear in City as independent obstacles.
+    const canChance = cityMode ? 0.40 : overheadChance;
+    if (roll < canChance) {
+      const h = random(45, 62);
+      const w = h * random(0.68, 0.84);
+      const lane = window.gameRand() < (cityMode ? 0.65 : 0.5) ? 'low' : 'high';
+      const y = lane === 'low'
+        ? groundY - player.height - h * random(0.18, 0.35)
+        : groundY - player.height - h - random(8, 30);
+      if (!cityMode || !nearScaffold(spawnX, w, 66)) {
+        obstacles.push({ x: spawnX, y, w, h, type: 'can', lane, passed: false, bobOffset: random(0, 6.28), bobSpeed: random(1.1, 2.2) });
+      }
+      return;
+    }
+
+    // City wall obstacles are created only by the occasional scaffold-combo route.
+    const rollGround = window.gameRand();
+    let type = cityMode ? 'crate' : 'cactus';
+    if (!cityMode) {
+      if (rollGround < 0.22) type = 'double';
+      else if (rollGround < 0.43) type = 'crate';
+      else if (rollGround < 0.61) type = 'tall';
+    }
+    const scale = random(0.9, 1.15);
+    const w = type === 'double' ? 44 : type === 'crate' ? (cityMode ? 38 : 34) : type === 'tall' ? 30 : 23;
+    const h = type === 'crate' ? (cityMode ? 40 : 35) : type === 'double' ? 48 : type === 'tall' ? random(66, 80) : 42;
+    const finalW = w * scale;
+    if (cityMode && nearScaffold(spawnX, finalW, 76)) return;
+    obstacles.push({ x: spawnX, y: groundY - h * scale, w: finalW, h: h * scale, type, passed: false, scale });
+  }
+
+  // V17: giàn giáo ở map City giảm mạnh ~80% (khoảng cách giữa hai cụm giàn giáo dài gấp ~8 lần).
+  const CITY_SCAFFOLD_GAP_MULT = 8;
+  // V17: bia, thùng, xe buýt xuất hiện nhiều hơn ~40% (khoảng chờ giữa hai vật cản ngắn lại).
+  const CITY_OBSTACLE_RATE = 1.3;
+  function cityGroundGap() {
+    // Faster scrolling needs a longer ground segment so the player can fall off a deck,
+    // touch down, and still have room to jump onto the next one.
+    return (random(235, 295) + Math.max(0, speed - 231) * 0.24) * CITY_SCAFFOLD_GAP_MULT;
+  }
+
+  function currentMapKey() { return cityMode ? (cityNight ? 'night' : 'city') : (villageMode ? 'village' : (beachMode ? (beachSunset ? 'sunset' : 'beach') : 'desert')); }   // [GĐ2]
+  // V23: chuyển map theo lộ trình. Cùng map thì giữ nguyên, không reset.
+  function switchMap(target, first) {
+    if (target === currentMapKey()) return;
+    if (target === 'city') enterCity(first, false);
+    else if (target === 'night') enterCity(first, true);   // [GĐ1]
+    else if (target === 'village') enterVillage(first);   // [GĐ2]
+    else enterBeach(target === 'sunset', first);
+  }
+
+  // ---------- RACING: về Sa Mạc, đổi map theo lộ trình, hồi sinh tại vạch xuất phát ----------
+  function enterDesert() {
+    cityNight = false;   // [GĐ1]
+    villageMode = false; villageDecor = []; windDir = 0; windTimer = 0; windCool = 8; windStreaks = [];   // [GĐ3-B2]   // [GĐ2]
+    cityMode = false;
+    beachMode = false;
+    beachSunset = false;
+    waterPits = [];
+    platforms = [];
+    groundPlatform = null;
+    lightningStrikes = [];
+    lightningStrikeTimer = 0;
+    cityBuildings = [];
+    player.onGround = true;
+    player.velocityY = 0;
+    player.y = groundY - player.height;
+    spawnTimer = 0.8;
+  }
+  function racingSetMap(key) {
+    if (!racingMode || state !== 'running' || key === currentMapKey()) return false;
+    const fromDesert = currentMapKey() === 'desert';
+    if (key === 'desert') enterDesert(); else switchMap(key, fromDesert);
+    return true;
+  }
+  function racingRespawn() {
+    rainbowUntil = 0; rainbowItems = [];   // [L4]
+    if (!racingMode || state !== 'running') return;
+    score = 0;
+    enterDesert();
+    speed = Math.min(width * 0.63, 380);
+    cityElapsed = 0;
+    // Xóa chướng ngại trong 450px phía trước mặt + vật cản đặc trưng map khác (xe buýt, tường, biển hiệu...)
+    const DESERT_TYPES = ['cactus', 'double', 'crate', 'tall', 'can'];
+    const from = player.x - 20, to = player.x + player.width + 450;
+    obstacles.forEach(o => {
+      if ((o.x + o.w > from && o.x < to) || !DESERT_TYPES.includes(o.type)) { o.ignored = true; o.racingCleared = true; }
+    });
+    obstacles = obstacles.filter(o => !o.racingCleared);
+    spareHits = upgrades[selectedCharacter] >= 4 ? 1 : 0; // khôi phục giáp mặc định của nhân vật
+    runMaxSpare = spareHits;
+    squadGuards = 0;
+    updateShield(false);
+    burst(player.x + player.width * 0.5, player.y + player.height * 0.5, 22);
+    screenShake = 0.18;
+    playTone(160, 0.2, 'sawtooth', 0.04);
+    updateHud();
+  }
+  function spendCrystals(amount = 0) {
+    const n = Math.max(0, Math.floor(amount));
+    if (crystals < n) return false;
+    crystals -= n;
+    saveEconomy();
+    saveMeta();
+    updateLobby();
+    return true;
+  }
+
+  function enterCity(first = true, night = false) {
+    if (cityMode && cityNight === night) return;           // [GĐ1] cho phép City ngày ⇄ Night
+    cityMode = true;
+    cityNight = night;
+    villageMode = false; villageDecor = []; windDir = 0; windTimer = 0; windCool = 8; windStreaks = [];   // [GĐ3-B2]   // [GĐ2]                                     // [GĐ1]
+    beachMode = false;
+    beachSunset = false;
+    waterPits = [];
+    // Chỉ mốc 3.000m mở bằng nhịp 0.8x; các mốc sau KHÔNG reset tốc độ đang chạy.
+    if (first) {
+      cityElapsed = 0;
+      speed = 265; // 265 / 330 = 0.8x
+    }
+    obstacles = [];
+    platforms = [];
+    groundPlatform = null;
+    player.onGround = true;
+    player.velocityY = 0;
+    player.y = groundY - player.height;
+    spawnTimer = 0.8;
+    nightPad = 0;                                          // [GĐ1]
+    cityBuildings = [];
+    if (!night) {                                          // [GĐ1] Night City: không giàn giáo
+      const firstX = width + 255;
+      const firstW = random(155, 190);
+      platforms.push({ x: firstX, y: groundY - random(76, 94), w: firstW, h: 12, type: 'scaffold', passed: false });
+      nextScaffoldX = firstX + firstW + cityGroundGap();
+    }
+    lightningStrikes = [];
+    lightningStrikeTimer = 0;
+    showToast(night
+      ? 'NIGHT CITY! Sò Nui dưới đường, xe buýt lao nhanh, lon bia bay tầm đầu — đừng nhảy!'
+      : (first ? 'MAP CITY! Xe buýt, thùng, bia dày đặc; thỉnh thoảng có dàn giáo làm bệ nhảy.' : 'CHUYỂN MAP: CITY! Xe buýt, thùng, bia dày đặc.'));
+    playTone(740, 0.12, 'triangle', 0.035);
+  }
+
+  // =====================================================================
+  // V22 — MAP BÃI BIỂN: hố nước · dù che nắng · biển hiệu treo cao
+  // =====================================================================
+  function enterBeach(sunset = false, first = true) {
+    cityNight = false;   // [GĐ1]
+    villageMode = false; villageDecor = []; windDir = 0; windTimer = 0; windCool = 8; windStreaks = [];   // [GĐ3-B2]   // [GĐ2]
+    cityMode = false;
+    beachMode = true;
+    beachSunset = !!sunset;
+    if (first) {
+      cityElapsed = 0;
+      speed = 265; // cùng nhịp mở đầu 0.8x như City rồi tăng dần
+    }
+    obstacles = [];
+    platforms = [];
+    waterPits = [];
+    groundPlatform = null;
+    player.onGround = true;
+    player.velocityY = 0;
+    player.y = groundY - player.height;
+    spawnTimer = 0.8;
+    lightningStrikes = [];
+    lightningStrikeTimer = 0;
+    showToast(beachSunset
+      ? 'BÃI BIỂN HOÀNG HÔN! Nhịp độ nhanh hơn: hố nước, dù, biển hiệu treo cao / cắm đất / treo giữa trượt theo mũi tên.'
+      : (first ? 'MAP BÃI BIỂN! Nhảy qua hố nước & dù, chạy luồn biển hiệu treo cao, nhảy qua biển hiệu cắm đất — xem mũi tên ở biển hiệu giữa!' : 'CHUYỂN MAP: BÃI BIỂN! Hố nước, dù che nắng và biển hiệu đủ kiểu.'));
+    playTone(660, 0.12, 'triangle', 0.035);
+  }
+
+  // ===== [GĐ2] VÀO MAP LÀNG QUÊ =====
+  function enterVillage(first = true) {
+    windDir = 0; windTimer = 0; windCool = 8; windStreaks = [];   // [GĐ3-B2]
+    cityMode = false; cityNight = false;
+    beachMode = false; beachSunset = false;
+    villageMode = true;
+    waterPits = [];
+    villageDecor = [];
+    // Mốc 3.000m mở bằng nhịp 0.8x; các mốc sau giữ nguyên tốc độ đang chạy
+    if (first) { cityElapsed = 0; speed = 265; }
+    obstacles = [];
+    platforms = [];
+    groundPlatform = null;
+    player.onGround = true;
+    player.velocityY = 0;
+    player.y = groundY - player.height;
+    spawnTimer = 0.8;
+    lightningStrikes = [];
+    lightningStrikeTimer = 0;
+    showToast(first
+      ? 'MAP LÀNG QUÊ! Sông lớn rộng — canh mép mà nhảy. Cây dừa có chùm: tán treo cao, chạy dưới là an toàn.'
+      : 'CHUYỂN MAP: LÀNG QUÊ! Sông lớn & cây dừa có chùm.');
+    playTone(520, 0.12, 'triangle', 0.035);
+  }
+
+  const BEACH_SIGN_TEXTS = ['BÃI BIỂN', 'KEM MÁT LẠNH', 'NƯỚC DỪA', 'CẤM NHẢY!', 'CẨN THẬN ĐẦU'];
+  const BEACH_UMBRELLA_COLORS = [['#ff5252', '#ffffff'], ['#2f9bff', '#ffffff'], ['#ffb02e', '#ffffff']];
+
+  // Mỗi vật cản bãi biển thuộc 1 trong 2 loại hành động: 'jump' (phải nhảy) hoặc 'stay' (chạy bên dưới, không được nhảy).
+  // Khoảng cách giữa 2 vật cản luôn đủ để người chơi tiếp đất / hạ đầu trước khi gặp vật tiếp theo.
+  // V23: biển hiệu có 3 biến thể — 'hang' (treo cao, chạy dưới) · 'ground' (cắm sát đất, nhảy qua) · 'mid' (treo tầm giữa:
+  // lại gần < 250px thì trượt lên cao hoặc sập xuống đất theo mũi tên). Kết quả của biển 'mid' được bốc sẵn bằng window.gameRand()
+  // lúc sinh ra (không bốc lúc trượt) để Solo 1v1 không lệch seed.
+  const BEACH_GROUND_SIGN_TEXTS = ['CHÚ Ý!', 'NHẢY NÀO!', 'KẸT CÁT', 'CẨN THẬN'];
+  const MID_SIGN_TRIGGER = 250;
+  function addBeachObstacle() {
+    const roll = window.gameRand();
+    const kind = roll < 0.32 ? 'pit' : roll < 0.54 ? 'umbrella' : roll < 0.80 ? 'sign' : 'can';
+    let w = 0, h = 0, lane = 'low', need = 'jump', variant = 'hang', midUp = false;
+    if (kind === 'pit') {
+      const large = window.gameRand() < 0.45;
+      w = large ? random(122, 152) : random(70, 92); // V23: hố nhỏ ~70–92px, hố lớn ~122–152px (trước 60–80 / 105–135)
+    } else if (kind === 'umbrella') {
+      h = random(54, 66);
+      w = h * random(0.86, 1.0);
+    } else if (kind === 'sign') {
+      const sv = window.gameRand();
+      variant = sv < 0.38 ? 'hang' : sv < 0.68 ? 'ground' : 'mid';
+      if (variant === 'hang') { w = random(96, 130); h = random(42, 52); need = 'stay'; }
+      else if (variant === 'ground') { w = random(70, 92); h = random(44, 54); need = 'jump'; }
+      else {
+        w = random(104, 130); h = random(40, 48);
+        midUp = window.gameRand() < 0.5;      // true: trượt lên cao (chạy dưới) · false: sập xuống đất (nhảy qua)
+        need = midUp ? 'stay' : 'jump';
+      }
+    } else {
+      h = random(45, 62);
+      w = h * random(0.68, 0.84);
+      lane = window.gameRand() < 0.5 ? 'low' : 'high';
+      need = lane === 'low' ? 'jump' : 'stay';
+    }
+
+    let spawnX = width + 28;
+    const hazards = [...obstacles, ...waterPits];
+    if (hazards.length) {
+      const prev = hazards.reduce((a, b) => (a.x + a.w > b.x + b.w ? a : b));
+      const reach = speed * 0.78; // quãng đường bay được trong một cú nhảy
+      let minGap = 160;
+      if (need === 'stay' && prev.beachNeed === 'jump') minGap = reach * 0.55 + 70;       // vừa nhảy xong phải kịp tiếp đất trước khi tới biển hiệu
+      else if (need === 'jump' && prev.beachNeed === 'jump') minGap = 150 + speed * 0.12;  // tiếp đất rồi nhảy tiếp
+      else if (need === 'jump' && prev.beachNeed === 'stay' && prev.variant === 'mid') minGap = 190; // biển giữa vừa trượt xong, chừa chỗ nhìn mũi tên kế tiếp
+      spawnX = Math.max(spawnX, prev.x + prev.w + minGap);
+    }
+
+    if (kind === 'pit') {
+      waterPits.push({ x: spawnX, w, passed: false, absorbed: false, beachNeed: 'jump' });
+    } else if (kind === 'umbrella') {
+      obstacles.push({ x: spawnX, y: groundY - h, w, h, type: 'umbrella', passed: false, beachNeed: 'jump', colors: BEACH_UMBRELLA_COLORS[Math.floor(vfxRandom(0, BEACH_UMBRELLA_COLORS.length))] });
+    } else if (kind === 'sign') {
+      const highY = groundY - player.height - 14 - h; // khoảng trống phía dưới bảng cao hơn đầu nhân vật ~14px → chạy bên dưới an toàn, nhảy lên là đụng
+      const base = { x: spawnX, w, h, type: 'beachSign', passed: false, beachNeed: need, variant };
+      if (variant === 'hang') {
+        obstacles.push({ ...base, y: highY, label: BEACH_SIGN_TEXTS[Math.floor(vfxRandom(0, BEACH_SIGN_TEXTS.length))] });
+      } else if (variant === 'ground') {
+        obstacles.push({ ...base, y: groundY - h, label: BEACH_GROUND_SIGN_TEXTS[Math.floor(vfxRandom(0, BEACH_GROUND_SIGN_TEXTS.length))] });
+      } else {
+        const midY = groundY - player.height * 0.78 - h * 0.55; // chắn cả lúc đứng chạy lẫn nhảy thấp → buộc đọc mũi tên
+        obstacles.push({ ...base, y: midY, midUp, highY, lowY: groundY - h, slide: 0 });
+      }
+    } else {
+      const y = lane === 'low'
+        ? groundY - player.height - h * random(0.18, 0.35)
+        : groundY - player.height - h - random(8, 30);
+      obstacles.push({ x: spawnX, y, w, h, type: 'can', lane, passed: false, beachNeed: need, bobOffset: random(0, 6.28), bobSpeed: random(1.1, 2.2) });
+    }
+  }
+
+  // Biển hiệu treo tầm giữa: khi nhân vật lại gần < 250px thì trượt lên cao hoặc sập xuống đất theo mũi tên cảnh báo.
+  function updateMidSign(o, dt) {
+    if (o.variant !== 'mid') return;
+    if (!o.slide && o.x - (player.x + player.width) < MID_SIGN_TRIGGER) {
+      o.slide = 1; // đang trượt
+      if (!o.midUp) { playTone(180, 0.12, 'sawtooth', 0.03); }
+    }
+    if (o.slide === 1) {
+      const target = o.midUp ? o.highY : o.lowY;
+      const step = (o.midUp ? 380 : 720) * dt; // trượt lên êm, sập xuống nhanh
+      if (Math.abs(target - o.y) <= step) {
+        o.y = target;
+        o.slide = 2; // đã vào vị trí
+        if (!o.midUp) {
+          screenShake = Math.max(screenShake, 0.08);
+          burst(o.x + o.w / 2, groundY - 2, 8, true);
+        }
+      } else o.y += Math.sign(target - o.y) * step;
+    }
+  }
+
+  // Hố nước: cuộn theo nền; nhân vật chạm mặt đường lúc tâm bàn chân nằm trong lòng hố → rơi xuống nước.
+  function updateWaterPits(dt, skillActive) {
+    waterPits.forEach(pit => {
+      pit.x -= speed * dt;
+      if (!pit.passed && pit.x + pit.w < player.x) {
+        pit.passed = true;
+        if (!pit.filled) phatAddRage(PHAT_RAGE_PER_OBSTACLE); // V23: vượt qua hố nước cũng cộng Nộ
+        if (!bossMode) { score += 4; awardCoinsForScore(); }
+      }
+    });
+    waterPits = waterPits.filter(pit => pit.x + pit.w > -30);
+    if (state !== 'running' || groundPlatform || player.y + player.height < groundY - 0.5) return; // đang ở trên không / trên bệ
+    const feet = player.x + player.width * 0.5;
+    for (const pit of waterPits) {
+      if (pit.absorbed || pit.filled) continue; // hố đã bị ∫ f(x)dx lấp đầy thì đi qua như đường thường
+      if (feet > pit.x + 6 && feet < pit.x + pit.w - 6) { fallInWater(pit, skillActive); break; }
+    }
+  }
+  function fallInWater(pit, skillActive) {
+    if (rainbowActive()) return;   // [L4] bất tử cầu vồng: lướt qua sông/hố an toàn
+    if (skillActive && IMMUNE_SKILL_CHARS.includes(selectedCharacter)) return; // kỹ năng miễn nhiễm: đi qua an toàn
+    if (phatAutoSave()) { pit.absorbed = true; return; } // Phát đang đầy Nộ: tự kích hoạt cứu nguy
+    burst(player.x + player.width * 0.5, groundY - 2, 16, false, '#9be4ff');
+    const guardedBySquad = consumeSquadGuard();
+    if (guardedBySquad || spareHits > 0) {
+      if (!guardedBySquad) spareHits--;
+      pit.absorbed = true; // hố này không còn gây hại lần nữa
+      if (!guardedBySquad) updateShield(true);
+      player.velocityY = -player.jumpPower * 0.95; // nảy lên khỏi mặt nước
+      player.onGround = false;
+      groundPlatform = null;
+      if (!guardedBySquad) showToast(`RƠI XUỐNG NƯỚC! Giáp bảo hộ vỡ, còn ${spareHits} lượt chịu đòn.`);
+      playTone(250, 0.16, 'triangle', 0.045);
+    } else {
+      endGame();
+    }
+  }
+
+  // ----- Vẽ Map Bãi Biển -----
+  function drawPalm(x, baseY, h, lean) {
+    const topX = x + lean, topY = baseY - h;
+    ctx.strokeStyle = beachSunset ? '#3b2336' : '#8a5a2b'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, baseY); ctx.quadraticCurveTo(x + lean * 0.2, baseY - h * 0.55, topX, topY); ctx.stroke();
+    ctx.fillStyle = beachSunset ? '#2c4a43' : '#2f9e44';
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (i - 2) * 0.62;
+      ctx.save(); ctx.translate(topX, topY); ctx.rotate(a);
+      ctx.beginPath(); ctx.ellipse(13, 0, 15, 4.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = beachSunset ? '#3b2336' : '#6b3f1d';
+    ctx.beginPath(); ctx.arc(topX, topY + 2, 2.6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawBeachBackground() {
+    const scroll = state === 'running' ? worldDistance : worldTime * 30;
+    const horizon = groundY - Math.max(52, height * 0.17);
+    const seaBottom = groundY - 12;
+
+    // Bầu trời nắng xanh sáng
+    const sky = ctx.createLinearGradient(0, 0, 0, horizon);
+    if (beachSunset) {
+      // Hoàng hôn: tím chàm → hồng → cam → vàng nhạt sát đường chân trời
+      sky.addColorStop(0, '#2f2a6b');
+      sky.addColorStop(0.45, '#b84f8e');
+      sky.addColorStop(0.78, '#ff8a5c');
+      sky.addColorStop(1, '#ffd08a');
+    } else {
+      sky.addColorStop(0, '#46b4f4');
+      sky.addColorStop(1, '#bdeafc');
+    }
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, width, height);
+
+    // Mặt trời
+    const sr = Math.min(30, height * 0.10) * (beachSunset ? 1.35 : 1);
+    const sx = width * (beachSunset ? 0.7 : 0.82);
+    const sy = beachSunset ? horizon - sr * 0.35 : height * 0.19; // hoàng hôn: mặt trời hạ thấp sát mặt biển
+    const halo = ctx.createRadialGradient(sx, sy, sr * 0.4, sx, sy, sr * 2.6);
+    halo.addColorStop(0, beachSunset ? 'rgba(255, 170, 90, .75)' : 'rgba(255, 244, 170, .65)');
+    halo.addColorStop(1, beachSunset ? 'rgba(255, 120, 90, 0)' : 'rgba(255, 244, 170, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(sx, sy, sr * 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = beachSunset ? '#ffb347' : '#ffd84a';
+    ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
+
+    // Mây trôi
+    if (beachSunset) ctx.globalAlpha = 0.5;
+    clouds.forEach(c => drawCloud(c.x, c.y, c.scale * 0.9));
+    ctx.globalAlpha = 1;
+
+    // Biển xa + sóng xanh
+    const sea = ctx.createLinearGradient(0, horizon, 0, seaBottom);
+    if (beachSunset) {
+      sea.addColorStop(0, '#ff9560');
+      sea.addColorStop(0.45, '#b9508f');
+      sea.addColorStop(1, '#5b3f9e');
+    } else {
+      sea.addColorStop(0, '#1f9ce0');
+      sea.addColorStop(1, '#6fd3f3');
+    }
+    ctx.fillStyle = sea;
+    ctx.fillRect(0, horizon, width, seaBottom - horizon + 1);
+    ctx.strokeStyle = beachSunset ? 'rgba(255, 214, 190, .5)' : 'rgba(255, 255, 255, .55)';
+    ctx.lineWidth = 1.5;
+    const rows = 3;
+    for (let r = 0; r < rows; r++) {
+      const wy = horizon + 7 + r * ((seaBottom - horizon - 12) / rows);
+      ctx.beginPath();
+      for (let x = 0; x <= width + 8; x += 8) {
+        const yy = wy + Math.sin((x + scroll * (0.12 + r * 0.05)) * 0.06 + worldTime * (1.1 + r * 0.4) + r) * 2.2;
+        if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+
+    if (beachSunset) {
+      // Vệt nắng lấp lánh dưới mặt trời
+      ctx.fillStyle = 'rgba(255, 226, 160, .55)';
+      for (let i = 0; i < 6; i++) {
+        const gy = horizon + 4 + i * ((seaBottom - horizon - 8) / 6);
+        const gw = sr * 1.7 * (1 - i * 0.1);
+        ctx.fillRect(sx - gw / 2 + Math.sin(worldTime * 2 + i * 1.3) * 4, gy, gw, 2);
+      }
+    }
+
+    // Bờ cát ướt + bọt sóng vỗ bờ
+    ctx.fillStyle = beachSunset ? '#d9a577' : '#ead28a';
+    ctx.fillRect(0, seaBottom, width, groundY - seaBottom);
+    ctx.fillStyle = beachSunset ? 'rgba(255, 230, 215, .85)' : 'rgba(255, 255, 255, .9)';
+    ctx.beginPath(); ctx.moveTo(0, seaBottom + 5);
+    for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, seaBottom + 1 + Math.sin(x * 0.07 + worldTime * 2.2) * 2.4 + 2);
+    ctx.lineTo(width, seaBottom - 3); ctx.lineTo(0, seaBottom - 3); ctx.closePath(); ctx.fill();
+
+    // Hàng dừa (parallax, vị trí theo toạ độ thế giới nên không bị nhảy hình)
+    const palmSpan = 250;
+    const palmScroll = scroll * 0.3;
+    const firstPalm = Math.floor(palmScroll / palmSpan) - 1;
+    for (let k = firstPalm; k < firstPalm + Math.ceil(width / palmSpan) + 3; k++) {
+      const v = ((k % 3) + 3) % 3;
+      drawPalm(k * palmSpan - palmScroll + 40 + v * 28, groundY - 5, 40 + v * 8, 7 - v * 4);
+    }
+
+    // Mặt đường = bãi cát vàng
+    ctx.fillStyle = beachSunset ? '#e8b27d' : '#f5dc8c';
+    ctx.fillRect(0, groundY, width, height - groundY);
+    ctx.fillStyle = beachSunset ? '#b8794a' : '#d8b45a';
+    ctx.fillRect(0, groundY, width, 3);
+    ctx.strokeStyle = beachSunset ? 'rgba(140, 90, 60, .35)' : 'rgba(190, 150, 70, .35)';
+    ctx.lineWidth = 1.5;
+    const off = scroll % 64;
+    for (let x = -off; x < width + 40; x += 64) {
+      ctx.beginPath(); ctx.moveTo(x, groundY + 13); ctx.lineTo(x + 18, groundY + 13); ctx.stroke();
+    }
+    ctx.fillStyle = beachSunset ? 'rgba(140, 90, 60, .45)' : 'rgba(190, 150, 70, .45)';
+    for (let x = 22; x < width; x += 97) {
+      const gx = (x - (scroll * 0.5) % (width + 30) + width + 30) % (width + 30);
+      ctx.fillRect(gx, groundY + 22 + (x % 2) * 4, 3, 2);
+    }
+  }
+
+  function drawWaterPits() {
+    waterPits.forEach(pit => {
+      const { x, w } = pit;
+      if (x > width + 10 || x + w < -10) return;
+      if (villageMode) { drawVillageRiver(pit); return; }   // [GĐ2] sông lớn
+      const y = groundY, h = height - groundY;
+      if (pit.filled) {
+        // V23: hố đã được ∫ f(x)dx lấp đầy — nền cát + các cột Riemann xanh ngọc
+        ctx.fillStyle = beachSunset ? '#e8b27d' : '#f5dc8c';
+        ctx.fillRect(x - 1, y, w + 2, h);
+        const cols = Math.max(3, Math.floor(w / 12));
+        const bw = w / cols;
+        ctx.fillStyle = 'rgba(25, 211, 197, .38)';
+        for (let i = 0; i < cols; i++) {
+          const bh = 8 + 7 * Math.abs(Math.sin(i * 0.9 + worldTime * 3));
+          ctx.fillRect(x + i * bw + 1, y, bw - 2, bh);
+        }
+        ctx.fillStyle = beachSunset ? '#b8794a' : '#d8b45a';
+        ctx.fillRect(x - 1, y, w + 2, 3);
+        return;
+      }
+      const g = ctx.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0, beachSunset ? '#ff9d70' : '#4cc7f5');
+      g.addColorStop(1, beachSunset ? '#6e3fa3' : '#1b7fc4');
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, w, h);
+      // gợn sóng trong hố
+      ctx.strokeStyle = 'rgba(255, 255, 255, .55)';
+      ctx.lineWidth = 2;
+      for (let row = 0; row < 2; row++) {
+        const wy = y + 10 + row * 13;
+        ctx.beginPath();
+        for (let px = x + 5; px <= x + w - 5; px += 6) {
+          const yy = wy + Math.sin(px * 0.18 + worldTime * 4 + row * 1.7) * 2;
+          if (px === x + 5) ctx.moveTo(px, yy); else ctx.lineTo(px, yy);
+        }
+        ctx.stroke();
+      }
+      // mặt nước + viền bọt sóng trắng hai bên
+      ctx.fillStyle = 'rgba(255, 255, 255, .4)';
+      ctx.fillRect(x, y, w, 3);
+      ctx.fillStyle = 'rgba(255, 255, 255, .92)';
+      ctx.fillRect(x - 2, y, 5, h);
+      ctx.fillRect(x + w - 3, y, 5, h);
+      for (const ex of [x, x + w]) {
+        const dir = ex === x ? 1 : -1;
+        for (let i = 0; i < 5; i++) {
+          const by = y + 4 + i * ((h - 8) / 4);
+          const bx = ex + dir * (3 + Math.sin(worldTime * 5 + i * 2 + ex * 0.05) * 1.6);
+          ctx.beginPath(); ctx.arc(bx, by, 3.4 - (i % 2) * 0.9, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    });
+  }
+
+  function drawUmbrella(o) {
+    const cx = o.x + o.w / 2;
+    const baseY = o.y + o.h;
+    const colors = o.colors || BEACH_UMBRELLA_COLORS[0];
+    ctx.fillStyle = 'rgba(120, 90, 30, .25)';
+    ctx.beginPath(); ctx.ellipse(cx, baseY + 2, o.w * 0.42, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#7a5230'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, o.y + o.h * 0.45); ctx.lineTo(cx, baseY); ctx.stroke();
+    const bot = o.y + o.h * 0.5, ry = o.h * 0.46, rx = o.w / 2, n = 6;
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = i % 2 ? colors[1] : colors[0];
+      ctx.beginPath(); ctx.moveTo(cx, bot);
+      ctx.ellipse(cx, bot, rx, ry, 0, Math.PI + i * Math.PI / n, Math.PI + (i + 1) * Math.PI / n);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(cx, bot, rx, ry, 0, Math.PI, Math.PI * 2); ctx.lineTo(cx - rx, bot); ctx.stroke();
+    ctx.fillStyle = '#7a5230';
+    ctx.beginPath(); ctx.arc(cx, o.y + o.h * 0.04, 2.4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawSignArrow(cx, cy, size, up, color) {
+    const d = up ? -1 : 1; // hướng mũi tên
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + d * size);
+    ctx.lineTo(cx + size * 0.85, cy - d * size * 0.1);
+    ctx.lineTo(cx + size * 0.3, cy - d * size * 0.1);
+    ctx.lineTo(cx + size * 0.3, cy - d * size);
+    ctx.lineTo(cx - size * 0.3, cy - d * size);
+    ctx.lineTo(cx - size * 0.3, cy - d * size * 0.1);
+    ctx.lineTo(cx - size * 0.85, cy - d * size * 0.1);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Biển hiệu cắm sát đất: bảng gỗ trên cọc, phải nhảy qua.
+  function drawGroundSign(o) {
+    const bh = o.h * 0.64;
+    const cx = o.x + o.w / 2;
+    ctx.fillStyle = 'rgba(120, 90, 30, .25)';
+    ctx.beginPath(); ctx.ellipse(cx, groundY + 2, o.w * 0.42, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7a5230';
+    ctx.fillRect(cx - 3, o.y + bh - 2, 6, o.h - bh + 2);
+    ctx.fillStyle = '#fff5cf';
+    roundedRect(o.x, o.y, o.w, bh, 7); ctx.fill();
+    ctx.strokeStyle = '#e0793a'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#ff8a4c';
+    roundedRect(o.x + 4, o.y + 4, o.w - 8, 5, 2.5); ctx.fill();
+    ctx.save();
+    ctx.fillStyle = '#c2410c';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    let fs = 15;
+    ctx.font = `900 ${fs}px sans-serif`;
+    while (fs > 8 && ctx.measureText(o.label || 'CHÚ Ý!').width > o.w - 12) { fs--; ctx.font = `900 ${fs}px sans-serif`; }
+    ctx.fillText(o.label || 'CHÚ Ý!', cx, o.y + bh * 0.66);
+    ctx.restore();
+  }
+
+  // Biển hiệu treo tầm giữa: mũi tên ▲ (trượt lên → chạy dưới) hoặc ▼ (sập xuống → nhảy qua).
+  function drawMidSign(o) {
+    const pulse = 0.72 + 0.28 * Math.sin(worldTime * 10);
+    if (!o.knocked) {
+      ctx.strokeStyle = 'rgba(60, 40, 25, .55)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(o.x + 16, -10); ctx.lineTo(o.x + 16, o.y);
+      ctx.moveTo(o.x + o.w - 16, -10); ctx.lineTo(o.x + o.w - 16, o.y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#ffe27a';
+    roundedRect(o.x, o.y, o.w, o.h, 7); ctx.fill();
+    ctx.strokeStyle = '#d62828'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#d62828';
+    roundedRect(o.x + 4, o.y + 4, o.w - 8, 5, 2.5); ctx.fill();
+    const arrowColor = o.midUp ? '#1b9e3e' : '#d62828';
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    drawSignArrow(o.x + 19, o.y + o.h * 0.62, o.h * 0.27, !!o.midUp, arrowColor);
+    drawSignArrow(o.x + o.w - 19, o.y + o.h * 0.62, o.h * 0.27, !!o.midUp, arrowColor);
+    ctx.restore();
+    ctx.save();
+    ctx.fillStyle = '#7a1d1d';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '900 10px sans-serif';
+    ctx.fillText('CẢNH BÁO', o.x + o.w / 2, o.y + o.h * 0.64);
+    ctx.restore();
+  }
+
+  function drawBeachSign(o) {
+    if (o.variant === 'ground') { drawGroundSign(o); return; }
+    if (o.variant === 'mid') { drawMidSign(o); return; }
+    if (!o.knocked) {
+      // Cột trụ chỉ vẽ mờ làm nền — KHÔNG tính va chạm.
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#6b4a2b';
+      const postTop = o.y - 8;
+      ctx.fillRect(o.x + 5, postTop, 5, groundY - postTop);
+      ctx.fillRect(o.x + o.w - 10, postTop, 5, groundY - postTop);
+      ctx.fillRect(o.x + 5, postTop, o.w - 10, 4);
+      ctx.restore();
+    }
+    ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(o.x + 14, o.y - 4); ctx.lineTo(o.x + 14, o.y + 2);
+    ctx.moveTo(o.x + o.w - 14, o.y - 4); ctx.lineTo(o.x + o.w - 14, o.y + 2);
+    ctx.stroke();
+    ctx.fillStyle = '#fff5cf';
+    roundedRect(o.x, o.y, o.w, o.h, 7); ctx.fill();
+    ctx.strokeStyle = '#e0793a'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#ff8a4c';
+    roundedRect(o.x + 4, o.y + 4, o.w - 8, 6, 3); ctx.fill();
+    ctx.save();
+    ctx.fillStyle = '#c2410c';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    let fs = 17;
+    ctx.font = `900 ${fs}px sans-serif`;
+    while (fs > 9 && ctx.measureText(o.label || 'BÃI BIỂN').width > o.w - 14) { fs--; ctx.font = `900 ${fs}px sans-serif`; }
+    ctx.fillText(o.label || 'BÃI BIỂN', o.x + o.w / 2, o.y + o.h * 0.64);
+    ctx.restore();
+  }
+
+  // =====================================================================
+  // V19 — ĐÁNH BOSS XE TĂNG (mở khóa bằng 3/3 Key, vào chơi tốn 1 Key hoặc 15 Crystal)
+  // =====================================================================
+  const BOSS_CFG = {
+    name: 'XE TĂNG CHIẾN ĐẤU',
+    maxHp: 300,          // tổng máu Boss
+    rocketDmg: 5,        // hòm đạn → tên lửa bay thẳng
+    bombDmg: 10,          // hòm bom → bay vòng cung, đau hơn
+    lives: 2,            // số tim mặc định (giáp Lv4 / vật phẩm khiên cộng thêm qua spareHits)
+    invuln: 1.2,         // giây bất tử sau khi trúng đòn
+    telegraph: 0.7,      // giây hiện laser đỏ cảnh báo trước khi bắn đạn pháo
+    missileWindup: 0.4,  // giây Boss nạp tên lửa trước khi phóng
+    restMin: 1.3,        // nhịp nghỉ giữa các đợt ra chiêu
+    restMax: 1.6,
+    rageRate: 1.25,      // Phase 2: ra chiêu nhanh hơn 25%
+    rageAt: 0.5,         // Phase 2 khi máu Boss còn ≤ 50%
+    shellSpeed: 900,     // V20: đạn pháo laser đỏ (px/s) — Phase 1
+    shellSpeedRage: 1000, // V20: đạn pháo ở Phase 2 (máu Boss dưới 50%)
+    missileSpeed: 460,   // V20: tên lửa hành trình (px/s) — Phase 1
+    missileSpeedRage: 500, // V20: tên lửa ở Phase 2
+    scroll: 300,         // tốc độ cuộn nền cố định trong trận Boss
+    crystalFee: 15,
+    unlockKeys: 3
+  };
+  const BOSS_REWARD = {
+    winCrystal: 45,
+    winCoin: 2000,
+    winCoinChance: 0.8,       // 80% ra 2.000 Coin, 20% ra thêm 10 Crystal
+    winBonusCrystal: 10,
+    lossLow: { crystal: 5, coin: 500 },    // rút < 50% máu Boss
+    lossHigh: { crystal: 10, coin: 800 }   // rút ≥ 50% máu Boss (đã vào Phase 2)
+  };
+
+  const bossBar = $('bossBar');
+  const bossFill = $('bossFill');
+  const bossPct = $('bossPct');
+  const heartsEl = $('hearts');
+  const overStats = $('overStats');
+  const bossResultEl = $('bossResult');
+  const retryText = $('retryText');
+
+  const bossSprite = new Image();
+  bossSprite.onload = () => { if (state !== 'running') render(); };
+  bossSprite.onerror = () => console.error('Không tải được ảnh Boss: assets/boss-tank.png');
+  bossSprite.src = 'assets/boss-tank.png';
+
+  function makeBoss() {
+    return {
+      hp: BOSS_CFG.maxHp, maxHp: BOSS_CFG.maxHp, rage: false, dead: false, deadT: 0, deadFxT: 0,
+      lives: BOSS_CFG.lives, invuln: 0, cd: 1.7, attack: null, recoil: 0, hitFlash: 0,
+      shells: [], missiles: [], pickups: [], shots: [], blasts: [], combo: null, obstacleCount: 0,
+      pickupTimer: 1.1, crateTimer: 2.4, hits: 0, shownPct: -1, shownHearts: ''
+    };
+  }
+  let boss = makeBoss();
+  let bossResult = null;
+
+  // ----- Hình học Boss -----
+  function bossRect() {
+    const ratio = bossSprite.naturalWidth && bossSprite.naturalHeight ? bossSprite.naturalWidth / bossSprite.naturalHeight : 2.04;
+    const w = width * 0.28; // chiếm ~28% chiều ngang
+    const h = w / ratio;
+    // Nhún nhẹ theo nhịp di chuyển của nền
+    const bob = state === 'running' && !boss.dead ? Math.abs(Math.sin(worldTime * 7)) * 2.4 : 0;
+    return { x: width - w - 4 + boss.recoil * 28, y: groundY + 7 - h - bob, w, h };
+  }
+  function bossMuzzle() { const r = bossRect(); return { x: r.x + r.w * 0.03, y: r.y + r.h * 0.07 }; }
+  function bossCenter() { const r = bossRect(); return { x: r.x + r.w * 0.42, y: r.y + r.h * 0.5 }; }
+  // Tầm thấp: phải nhảy qua. Tầm cao: đứng yên dưới đất là né được.
+  function bossLaneY(lane) { return lane === 'low' ? groundY - player.height * 0.30 : groundY - player.height - 6; }
+
+  function playerBox() {
+    const pw = Math.max(player.width * 0.52, player.height * 0.30);
+    return { x: player.x + player.width * 0.25 - (pw - player.width * 0.52) / 2, y: player.y + player.height * 0.12, w: pw, h: player.height * 0.84 };
+  }
+  function rectHitsPlayer(x, y, w, h, shrink = 0.12) {
+    const b = playerBox();
+    const ix = w * shrink, iy = h * shrink;
+    x += ix; y += iy; w -= ix * 2; h -= iy * 2;
+    return b.x < x + w && b.x + b.w > x && b.y < y + h && b.y + b.h > y;
+  }
+
+  // ----- HUD: tim & thanh máu -----
+  function updateHearts(hit = false) {
+    const text = '❤️'.repeat(Math.max(0, boss.lives)) + '🖤'.repeat(Math.max(0, BOSS_CFG.lives - boss.lives));
+    if (text !== boss.shownHearts) { boss.shownHearts = text; heartsEl.textContent = text; }
+    heartsEl.setAttribute('aria-label', `${boss.lives} tim`);
+    if (hit) {
+      heartsEl.classList.remove('is-hit');
+      void heartsEl.offsetWidth;
+      heartsEl.classList.add('is-hit');
+    }
+  }
+  function updateBossHud() {
+    const pct = Math.max(0, Math.ceil(boss.hp / boss.maxHp * 100));
+    if (pct === boss.shownPct) return;
+    boss.shownPct = pct;
+    bossFill.style.width = `${pct}%`;
+    bossPct.textContent = `${pct}%`;
+  }
+  function initBossRun() {
+    boss = makeBoss();
+    bossResult = null;
+    bossBar.hidden = !bossMode;
+    heartsEl.hidden = !bossMode;
+    bossBar.classList.remove('is-rage');
+    if (bossMode) { updateBossHud(); updateHearts(); }
+  }
+
+  // ----- Chọn nhịp ra chiêu: không để hai mối nguy tới người chơi cùng lúc (luôn có đường né) -----
+  function bossThreatTimes() {
+    const px = player.x + player.width * 0.5;
+    const times = [];
+    boss.shells.forEach(s => times.push((s.x - px) / s.vx));
+    boss.missiles.forEach(m => times.push((m.x - px) / m.vx));
+    obstacles.forEach(o => times.push((o.x + o.w * 0.5 - px) / Math.max(1, speed)));
+    if (boss.attack) attackArrivals(boss.attack).forEach(t => times.push(t));
+    if (boss.combo) attackArrivals(boss.combo.attack).forEach(t => times.push(boss.combo.wait + t));
+    return times.filter(t => t > -0.5);
+  }
+  // V20: ngưỡng trùng lặp 0.5s (từ 0.9s) để Boss ra chiêu dồn dập hơn
+  const bossConflict = (t) => bossThreatTimes().some(other => Math.abs(other - t) < 0.5);
+  // Thời điểm (tính từ lúc bắt đầu nạp) mỗi đạn của một đòn chạm tới người chơi
+  function attackArrivals(a) {
+    const px = player.x + player.width * 0.5;
+    const m = bossMuzzle();
+    if (a.type === 'shell') return [a.t + (m.x - 30 - px) / a.vx];
+    return a.salvo.map(sv => a.t + (m.x - 40 + sv.dx - px) / a.vx);
+  }
+  const bossShellSpeed = () => (boss.rage ? BOSS_CFG.shellSpeedRage : BOSS_CFG.shellSpeed);
+  const bossMissileSpeed = () => (boss.rage ? BOSS_CFG.missileSpeedRage : BOSS_CFG.missileSpeed);
+  // Loạt tên lửa: các quả cách nhau 150–180px theo trục x, độ cao so le (thấp → cao → thấp).
+  // Tầm thấp: phải nhảy. Tầm cao: hạ độ cao (hoặc dùng Nhảy kép) để né.
+  function makeSalvo(count, allLow = false, gap = null) {
+    const salvo = [];
+    let dx = 0;
+    for (let i = 0; i < count; i++) {
+      if (i > 0) dx += gap || random(150, 180);
+      const low = allLow || i % 2 === 0;
+      const y = low ? groundY - player.height * random(0.22, 0.40) : groundY - player.height - random(10, 30);
+      salvo.push({ dx, y });
+    }
+    return salvo;
+  }
+
+  function startBossAttack() {
+    let attack;
+    if (Math.random() < 0.6) {
+      // Chiêu 1: đạn pháo nhanh, có laser đỏ cảnh báo
+      attack = { type: 'shell', lane: Math.random() < 0.5 ? 'low' : 'high', t: BOSS_CFG.telegraph, vx: bossShellSpeed() };
+    } else {
+      // Chiêu 2 (V20): bắn LOẠT tên lửa — 2 quả ở Phase 1, 3 quả ở Phase 2, độ cao so le
+      attack = { type: 'missile', t: BOSS_CFG.missileWindup, vx: bossMissileSpeed(), salvo: makeSalvo(boss.rage ? 3 : 2) };
+    }
+    if (attackArrivals(attack).some(bossConflict)) { boss.cd = 0.15; return; }
+    boss.attack = attack;
+  }
+  function fireBossAttack() {
+    const a = boss.attack;
+    const m = bossMuzzle();
+    if (a.type === 'shell') {
+      const y = bossLaneY(a.lane);
+      boss.shells.push({ x: m.x - 30, y, w: 38, h: 14, vx: a.vx });
+      boss.blasts.push({ x: m.x - 6, y, life: 0.2, max: 0.2, r: 22, color: '#ffd34d' });
+      boss.recoil = 0.18;
+      playTone(130, 0.16, 'sawtooth', 0.05);
+    } else {
+      a.salvo.forEach(sv => boss.missiles.push({ x: m.x - 40 + sv.dx, y: sv.y, w: 46, h: 16, vx: a.vx, smoke: 0 }));
+      boss.blasts.push({ x: m.x - 6, y: a.salvo[0].y, life: 0.2, max: 0.2, r: 18, color: '#ff9a3a' });
+      boss.recoil = 0.12;
+      playTone(210, 0.22, 'triangle', 0.045);
+    }
+    boss.attack = null;
+    // Nhịp nghỉ 1,3–1,6 giây; Phase 2 ra chiêu nhanh hơn 25%
+    boss.cd = random(BOSS_CFG.restMin, BOSS_CFG.restMax) / (boss.rage ? BOSS_CFG.rageRate : 1);
+  }
+
+  function enterBossRage() {
+    boss.rage = true;
+    bossBar.classList.add('is-rage');
+    boss.crateTimer = 1.8;
+    screenShake = Math.max(screenShake, 0.4);
+    const c = bossCenter();
+    burst(c.x, c.y, 24, false, '#ff7a2b');
+    showToast('BOSS NỔI GIẬN! Ra chiêu nhanh hơn, thùng gỗ, rào chắn & giàn giáo xuất hiện trên đường!');
+    playTone(90, 0.4, 'sawtooth', 0.05);
+  }
+
+  // ----- Trúng đòn -----
+  function hurtBossPlayer() {
+    if (boss.invuln > 0 || state !== 'running') return;
+    if (phatAutoSave()) return; // Phát đầy Nộ: tự kích hoạt, đỡ đòn miễn phí
+    boss.invuln = BOSS_CFG.invuln;
+    screenShake = Math.max(screenShake, 0.22);
+    burst(player.x + player.width * 0.5, player.y + player.height * 0.5, 18, false, '#ff7a2b');
+    playTone(140, 0.2, 'sawtooth', 0.05);
+    if (consumeSquadGuard()) {
+      // Đồng đội đã đỡ thay; giữ nguyên Giáp và số tim Boss.
+    } else if (spareHits > 0) {
+      spareHits--;
+      updateShield(true);
+      showToast(`GIÁP BẢO HỘ! Còn ${spareHits} giáp · ${boss.lives} tim.`);
+    } else {
+      boss.lives--;
+      updateHearts(true);
+      if (boss.lives <= 0) { endGame(); return; }
+      showToast(`TRÚNG ĐẠN! Còn ${boss.lives} tim. Bất tử ${BOSS_CFG.invuln} giây.`);
+    }
+  }
+
+  // ----- Hòm đạn / bom: lụm để phản công -----
+  function spawnBossPickup() {
+    const spawnX = width + 30;
+    let lane = Math.random() < 0.5 ? 'low' : 'high';
+    if (lane === 'low' && obstacles.some(o => Math.abs(o.x - spawnX) < 150)) lane = 'high';
+    const w = 32, h = 28;
+    const y = lane === 'low' ? groundY - h - 3 : groundY - player.height - 56;
+    boss.pickups.push({ x: spawnX, y, w, h, lane, kind: Math.random() < 0.35 ? 'bomb' : 'rocket', phase: random(0, 6.28), taken: false });
+  }
+  function collectBossPickup(p) {
+    p.taken = true;
+    const t = bossCenter();
+    const sx = player.x + player.width * 0.85;
+    const sy = player.y + player.height * 0.4;
+    const bomb = p.kind === 'bomb';
+    boss.shots.push({
+      sx, sy, tx: t.x, ty: t.y, t: 0,
+      dur: Math.max(0.35, (t.x - sx) / (bomb ? 620 : 800)),
+      kind: p.kind, dmg: bomb ? BOSS_CFG.bombDmg : BOSS_CFG.rocketDmg
+    });
+    burst(p.x + p.w / 2, p.y + p.h / 2, 8, false, '#ffd34d');
+    playTone(bomb ? 220 : 520, 0.12, 'square', 0.03);
+  }
+  function shotPos(s) {
+    const p = clamp(s.t / s.dur, 0, 1);
+    const arc = s.kind === 'bomb' ? Math.sin(Math.PI * p) * 70 : 0;
+    return { x: s.sx + (s.tx - s.sx) * p, y: s.sy + (s.ty - s.sy) * p - arc, p };
+  }
+  function impactBoss(s) {
+    boss.hp = Math.max(0, boss.hp - s.dmg);
+    boss.hits++;
+    boss.hitFlash = 0.18;
+    boss.blasts.push({ x: s.tx, y: s.ty, life: 0.36, max: 0.36, r: s.kind === 'bomb' ? 52 : 38 });
+    burst(s.tx, s.ty, s.kind === 'bomb' ? 16 : 10, false, '#ff9a3a');
+    screenShake = Math.max(screenShake, s.kind === 'bomb' ? 0.2 : 0.14);
+    playTone(s.kind === 'bomb' ? 95 : 130, 0.2, 'sawtooth', 0.05);
+    updateBossHud();
+    if (boss.hp <= 0) defeatBoss();
+    else if (!boss.rage && boss.hp <= boss.maxHp * BOSS_CFG.rageAt) enterBossRage();
+  }
+  function defeatBoss() {
+    boss.dead = true;
+    boss.deadT = 0;
+    boss.deadFxT = 0;
+    boss.attack = null;
+    boss.combo = null;
+    boss.shells = []; boss.missiles = []; boss.pickups = []; boss.shots = [];
+    screenShake = 0.5;
+    finishBoss(true);
+  }
+
+  // ----- Tên lửa bị Ninja chém / Sét giật nổ -----
+  function sliceMissile(m) {
+    m.dead = true;
+    slashFX.push({ x: m.x + m.w / 2, y: m.y, w: m.w, h: m.h * 2, life: 0.3, max: 0.3 });
+    boss.blasts.push({ x: m.x + m.w / 2, y: m.y, life: 0.3, max: 0.3, r: 28 });
+    burst(m.x + m.w / 2, m.y, 10, false, '#ff9a3a');
+    playTone(vfxRandom(900, 1300), 0.06, 'sawtooth', 0.025);
+  }
+  function zapMissile(m) {
+    m.dead = true;
+    lightningFlash = 0.28;
+    lightningStrikes.push({ x: m.x + m.w / 2, y: m.y, life: 0.62, max: 0.62 });
+    boss.blasts.push({ x: m.x + m.w / 2, y: m.y, life: 0.3, max: 0.3, r: 28 });
+    burst(m.x + m.w / 2, m.y, 12, false, '#ff9a3a');
+    if (lightningCooldown <= 0) { lightningCooldown = 0.18; playTone(vfxRandom(520, 900), 0.07, 'square', 0.025); }
+  }
+
+  // V20: thùng gỗ / rào chắn / GIÀN GIÁO xen kẽ (cứ 2 vật cản thường thì tới 1 giàn giáo).
+  // Trả về loại vừa sinh ra, hoặc null nếu tới lượt giàn giáo mà sân chưa trống (sẽ thử lại sau).
+  function spawnBossObstacle() {
+    const spawnX = width + 30;
+    const scaffoldTurn = boss.obstacleCount % 3 === 2;
+    const fieldClear = !boss.attack && !boss.combo && !boss.shells.length && !boss.missiles.length && !platforms.length;
+    if (scaffoldTurn && !fieldClear) return null;
+    boss.obstacleCount++;
+    if (scaffoldTurn) {
+      // Giàn giáo rộng 160–190px, cao cách mặt đất ~88px
+      const deckW = random(160, 190);
+      const deckY = groundY - 88;
+      platforms.push({ x: spawnX, y: deckY, w: deckW, h: 14, type: 'scaffold', passed: false });
+      // Pha "buộc nhảy lên cao": Boss ưu tiên bắn 1 đạn pháo tầm thấp HOẶC loạt 2 tên lửa tầm thấp nối đuôi
+      // quét sát mặt đất đúng lúc giàn giáo tới — chỉ đứng trên giàn giáo mới né được.
+      const px = player.x + player.width * 0.5;
+      const reach = (spawnX - px) / speed; // giây để giàn giáo chạm tới người chơi
+      const useShell = Math.random() < 0.5;
+      const attack = useShell
+        ? { type: 'shell', lane: 'low', t: BOSS_CFG.telegraph, vx: bossShellSpeed() }
+        : { type: 'missile', t: BOSS_CFG.missileWindup, vx: bossMissileSpeed(), salvo: makeSalvo(2, true, 150) };
+      const fly = attackArrivals(attack)[0] - attack.t; // thời gian bay của đạn đầu tiên
+      const hitAt = reach + (useShell ? 0.30 : 0.12);   // đạn đầu tới khi người chơi đã đứng trên giàn giáo
+      boss.combo = { wait: Math.max(0.05, hitAt - attack.t - fly), attack };
+      // Hòm bom 💣 ở cuối giàn giáo — phần thưởng cho người leo lên
+      boss.pickups.push({ x: spawnX + deckW - 40, y: deckY - 34, w: 32, h: 28, lane: 'deck', kind: 'bomb', phase: random(0, 6.28), taken: false });
+      return 'scaffold';
+    }
+    if (Math.random() < 0.55) {
+      const s = random(0.95, 1.2);
+      obstacles.push({ x: spawnX, y: groundY - 35 * s, w: 34 * s, h: 35 * s, type: 'crate', passed: true, scale: s });
+      return 'crate';
+    }
+    obstacles.push({ x: spawnX, y: groundY - 42, w: 48, h: 42, type: 'barrier', passed: true });
+    return 'barrier';
+  }
+
+  // ----- Vòng cập nhật chính của trận Boss (gọi trong update() khi đang chạy) -----
+  function updateBossFight(dt, skillActive) {
+    if (!bossMode || boss.dead || state !== 'running') return;
+    const phasing = skillActive && IMMUNE_SKILL_CHARS.includes(selectedCharacter);
+    const ninja = skillActive && selectedCharacter === 'toduy';
+    const trieu = skillActive && selectedCharacter === 'trieu';
+    const thunder = skillActive && (selectedCharacter === 'trong' || selectedCharacter === 'tien');
+    boss.invuln = Math.max(0, boss.invuln - dt);
+
+    if (!boss.rage && boss.hp <= boss.maxHp * BOSS_CFG.rageAt) enterBossRage();
+
+    // Máy trạng thái ra chiêu
+    if (boss.combo) {
+      // Combo giàn giáo: chờ đúng nhịp rồi nạp đòn quét sát đất (ưu tiên hơn đòn thường)
+      boss.combo.wait -= dt;
+      if (boss.combo.wait <= 0) { boss.attack = boss.combo.attack; boss.combo = null; }
+    } else if (boss.attack) {
+      boss.attack.t -= dt;
+      if (boss.attack.t <= 0) fireBossAttack();
+    } else if (!platforms.length) { // giàn giáo còn trên màn hình: tạm nghỉ đòn thường để luôn có đường né
+      boss.cd -= dt;
+      if (boss.cd <= 0) startBossAttack();
+    }
+
+    // Đạn pháo (không bị Ninja/Sét phá được)
+    boss.shells.forEach(s => {
+      s.x -= s.vx * dt;
+      if (!s.dodged && !s.hit && s.x + s.w < player.x) { s.dodged = true; phatAddRage(PHAT_RAGE_PER_OBSTACLE); } // né được đạn pháo
+    });
+    // Tên lửa (Ninja chém đứt / Sét giật nổ được)
+    boss.missiles.forEach(m => {
+      m.x -= m.vx * dt;
+      if (!m.dodged && !m.dead && !m.hit && m.x + m.w < player.x) { m.dodged = true; phatAddRage(PHAT_RAGE_PER_OBSTACLE); } // né được tên lửa
+      m.smoke -= dt;
+      if (m.smoke <= 0) {
+        m.smoke = 0.07;
+        particles.push({ x: m.x + m.w, y: m.y, vx: vfxRandom(10, 40), vy: vfxRandom(-16, 4), g: -20, life: 0.5, maxLife: 0.5, size: vfxRandom(3, 5), dust: true, color: 'rgba(120,120,120,.7)' });
+      }
+      if (m.dead) return;
+      if (selectedCharacter === 'quang' && skillActive && m.x < player.x + player.width + 70 && m.x + m.w > player.x - 10) {
+        m.dead = true;
+        knockedObstacles.push({ x: m.x, y: m.y - m.h / 2, w: m.w, h: m.h, type: 'barrier', vx: vfxRandom(280, 500), vy: vfxRandom(-760, -480), spin: vfxRandom(-13, 13), angle: 0, life: 1.45, knocked: true });
+        burst(m.x + m.w / 2, m.y, 14, false, '#ff8a28');
+        screenShake = Math.max(screenShake, 0.07);
+      } else if (trieu && m.x < player.x + player.width + 390 && m.x + m.w > player.x) {
+        m.dead = true;
+        knockedObstacles.push({ x: m.x, y: m.y - m.h / 2, w: m.w, h: m.h, type: 'barrier', vx: vfxRandom(180, 340), vy: vfxRandom(-600, -380), spin: vfxRandom(-10, 10), angle: 0, life: 1.5 });
+      } else if (brooms.length && broomHits(m.x, m.w)) {
+        m.dead = true;
+        knockedObstacles.push({ x: m.x, y: m.y - m.h / 2, w: m.w, h: m.h, type: 'barrier', vx: vfxRandom(180, 340), vy: vfxRandom(-600, -380), spin: vfxRandom(-10, 10), angle: 0, life: 1.5, knocked: true });
+      } else if (smokeRings.length && smokeRingHits(m.x, m.w)) {
+        m.dead = true;
+        knockedObstacles.push({ x: m.x, y: m.y - m.h / 2, w: m.w, h: m.h, type: 'barrier', vx: vfxRandom(180, 340), vy: vfxRandom(-600, -380), spin: vfxRandom(-10, 10), angle: 0, life: 1.5, knocked: true });
+        burst(m.x + m.w / 2, m.y, 8, false, '#e9e4d2');
+      } else if (ninja &&
+          m.x < player.x + player.width + NINJA_REACH && m.x + m.w > player.x + player.width * 0.2 &&
+          m.y + m.h / 2 > player.y - 64 && m.y - m.h / 2 < player.y + player.height + 28) {
+        sliceMissile(m);
+      } else if (thunder && m.x > player.x - 4 && m.x < player.x + 360) {
+        zapMissile(m);
+      }
+    });
+
+    // Va chạm với người chơi (Duy / Mu Rát / Duy Quân đội xuyên qua khi đang dùng kỹ năng)
+    if (!phasing && boss.invuln <= 0) {
+      for (const s of boss.shells) {
+        if (!s.hit && rectHitsPlayer(s.x, s.y - s.h / 2, s.w, s.h)) {
+          s.hit = true;
+          boss.blasts.push({ x: s.x, y: s.y, life: 0.25, max: 0.25, r: 26 });
+          hurtBossPlayer();
+          break;
+        }
+      }
+      for (const m of boss.missiles) {
+        if (state !== 'running') break;
+        if (!m.dead && !m.hit && rectHitsPlayer(m.x, m.y - m.h / 2, m.w, m.h)) {
+          m.hit = true;
+          boss.blasts.push({ x: m.x, y: m.y, life: 0.3, max: 0.3, r: 32 });
+          hurtBossPlayer();
+          break;
+        }
+      }
+    }
+    boss.shells = boss.shells.filter(s => !s.hit && s.x + s.w > -20);
+    boss.missiles = boss.missiles.filter(m => !m.dead && !m.hit && m.x + m.w > -20);
+    if (state !== 'running') return;
+
+    // Hòm đạn / bom trên đường
+    boss.pickupTimer -= dt;
+    if (boss.pickupTimer <= 0) { spawnBossPickup(); boss.pickupTimer = random(1.7, 2.7); }
+    boss.pickups.forEach(p => { p.x -= speed * dt; });
+    boss.pickups.forEach(p => { if (!p.taken && rectHitsPlayer(p.x, p.y, p.w, p.h, -0.1)) collectBossPickup(p); });
+    boss.pickups = boss.pickups.filter(p => !p.taken && p.x + p.w > -20);
+
+    // Phase 2: thùng gỗ / rào chắn
+    if (boss.rage) {
+      boss.crateTimer -= dt;
+      if (boss.crateTimer <= 0) {
+        const spawnX = width + 30;
+        const arrive = (spawnX - player.x - player.width * 0.5) / speed;
+        const lowPickupNear = boss.pickups.some(p => p.lane === 'low' && Math.abs(p.x - spawnX) < 130);
+        if (lowPickupNear || platforms.length || bossConflict(arrive)) boss.crateTimer = 0.2;
+        else {
+          const kind = spawnBossObstacle();
+          boss.crateTimer = kind === null ? 0.25 : (kind === 'scaffold' ? random(3.8, 4.8) : random(2.4, 3.6));
+        }
+      }
+    }
+
+    // Tên lửa / bom của người chơi bay về phía Boss
+    boss.shots.forEach(s => {
+      s.t += dt;
+      if (Math.random() < dt * 40) {
+        const p = shotPos(s);
+        particles.push({ x: p.x, y: p.y, vx: vfxRandom(-30, 10), vy: vfxRandom(-10, 10), g: 0, life: 0.3, maxLife: 0.3, size: vfxRandom(2, 4), dust: false, color: s.kind === 'bomb' ? '#b8b8b8' : '#ffb347' });
+      }
+    });
+    const arrived = boss.shots.filter(s => s.t >= s.dur);
+    boss.shots = boss.shots.filter(s => s.t < s.dur);
+    arrived.forEach(s => { if (!boss.dead) impactBoss(s); });
+  }
+
+  // Hiệu ứng (nổ, rung, Boss sụp đổ) vẫn chạy khi trận đã kết thúc
+  function updateBossFX(dt) {
+    boss.hitFlash = Math.max(0, boss.hitFlash - dt);
+    boss.recoil = Math.max(0, boss.recoil - dt);
+    boss.blasts.forEach(b => { b.life -= dt; });
+    boss.blasts = boss.blasts.filter(b => b.life > 0);
+    if (boss.dead) {
+      boss.deadT += dt;
+      boss.deadFxT -= dt;
+      if (boss.deadFxT <= 0 && boss.deadT < 1.2) {
+        boss.deadFxT = 0.12;
+        const r = bossRect();
+        const x = r.x + vfxRandom(0.1, 0.9) * r.w;
+        const y = r.y + vfxRandom(0.1, 0.9) * r.h;
+        boss.blasts.push({ x, y, life: 0.4, max: 0.4, r: vfxRandom(26, 46) });
+        burst(x, y, 10, false, '#ff9a3a');
+        screenShake = Math.max(screenShake, 0.12);
+        playTone(vfxRandom(80, 170), 0.18, 'sawtooth', 0.04);
+      }
+    }
+  }
+
+  // ----- Kết thúc trận Boss: tính thưởng, lưu localStorage -----
+  function finishBoss(win) {
+    if (state !== 'running' || !bossMode) return;
+    state = 'over';
+    overAt = performance.now();
+    const R = BOSS_REWARD;
+    const phase2 = boss.hp <= boss.maxHp * BOSS_CFG.rageAt;
+    const res = { win, drained: clamp(1 - boss.hp / boss.maxHp, 0, 1), crystal: 0, coin: 0, base: 0, bonusCoin: 0, bonusCrystal: 0, tier: null, hits: boss.hits };
+    if (win) {
+      res.base = R.winCrystal;
+      if (Math.random() < R.winCoinChance) res.bonusCoin = R.winCoin;
+      else res.bonusCrystal = R.winBonusCrystal;
+      res.crystal = res.base + res.bonusCrystal;
+      res.coin = res.bonusCoin;
+    } else {
+      const tier = phase2 ? R.lossHigh : R.lossLow;
+      res.tier = phase2 ? 'high' : 'low';
+      res.crystal = tier.crystal;
+      res.coin = tier.coin;
+    }
+    // Cộng thẳng vào tài khoản — không áp dụng ×2 Coin cho phần thưởng Boss
+    crystals += res.crystal;
+    coinBalance += res.coin;
+    saveEconomy();
+    saveMeta();
+    commitChallengeBoss(win);
+    bossResult = res;
+    if (!win) {
+      screenShake = 0.22;
+      burst(player.x + player.width * 0.6, player.y + player.height * 0.75, 12);
+      playTone(110, 0.16, 'sawtooth', 0.04);
+    } else {
+      playTone(660, 0.2, 'triangle', 0.045);
+    }
+    updateHud();
+    updateLobby();
+    renderCharacterCards();
+    overTimer = setTimeout(() => { if (state === 'over') showGameOver(); }, win ? 1300 : 650);
+  }
+
+  function showBossResult() {
+    const r = bossResult;
+    overPanel.classList.toggle('is-record', r.win);
+    overKicker.textContent = r.win ? 'CHIẾN THẮNG' : 'THẤT BẠI';
+    overTitle.textContent = r.win ? 'Hạ gục Boss!' : 'Boss còn trụ vững!';
+    overStats.hidden = true;
+    overBest.hidden = true;
+    const row = (label, value, cls = '') => `<div class="boss-res-row ${cls}"><span>${label}</span><strong class="px">${value}</strong></div>`;
+    const pct = Math.round(r.drained * 100);
+    let rows = row('MÁU BOSS ĐÃ RÚT', `${pct}%`);
+    if (r.win) {
+      rows += row('PHẦN THƯỞNG HẠ GỤC', `💎 +${r.base}`, 'is-gold');
+      rows += r.bonusCoin
+        ? row('THƯỞNG THÊM (NGẪU NHIÊN)', `🪙 +${fmt(r.bonusCoin)}`, 'is-gold')
+        : row('THƯỞNG THÊM (NGẪU NHIÊN)', `💎 +${r.bonusCrystal}`, 'is-gold');
+    } else {
+      rows += row(r.tier === 'high' ? 'THƯỞNG AN ỦI (≥ 50%)' : 'THƯỞNG AN ỦI (< 50%)', `💎 +${r.crystal} · 🪙 +${fmt(r.coin)}`, 'is-gold');
+    }
+    const note = r.win
+      ? 'Phần thưởng đã được cộng vào tài khoản (không nhân đôi Coin).'
+      : (r.tier === 'high' ? 'Boss đã vào Phase 2 — thử lại để hạ gục và nhận 💎 45!' : 'Rút từ 50% máu Boss trở lên để nhận thưởng an ủi lớn hơn.');
+    bossResultEl.innerHTML = rows + `<p class="boss-res-note">${note}</p>`;
+    bossResultEl.hidden = false;
+    retryText.textContent = 'KHIÊU CHIẾN LẠI';
+    backLobbyButton.textContent = 'VỀ SẢNH';
+    gameOver.hidden = false;
+  }
+
+  // ----- Thanh toán & vào trận -----
+  function startBossRun(method) {
+    if (state === 'running' || !bossUnlocked) return;
+    if (method === 'key') {
+      if (miniKeys < 1) return;
+      miniKeys--;
+    } else if (method === 'crystal') {
+      if (crystals < BOSS_CFG.crystalFee) return;
+      crystals -= BOSS_CFG.crystalFee;
+    } else return;
+    saveMeta();
+    updateLobby();
+    startGame('boss');
+  }
+  function retryRun() {
+    if (bossMode) { toLobby(false); openMiniModal(); } // trận Boss phải trả phí lại
+    else startGame();
+  }
+
+  // ----- Vẽ -----
+  function drawBossBack() {
+    boss.pickups.forEach(drawBossPickup);
+    drawBossTank();
+    drawBossLaser();
+  }
+  function drawBossFront() {
+    boss.shells.forEach(drawBossShell);
+    boss.missiles.forEach(drawBossMissile);
+    boss.shots.forEach(drawPlayerShot);
+    boss.blasts.forEach(drawBlast);
+  }
+  function drawBossTank() {
+    const r = bossRect();
+    const shakeX = boss.hitFlash > 0 ? vfxRandom(-2, 2) : 0;
+    ctx.fillStyle = 'rgba(40, 60, 30, .24)';
+    ctx.beginPath(); ctx.ellipse(r.x + r.w * 0.5, groundY + 4, r.w * 0.5, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    if (boss.rage && !boss.dead) {
+      // Phase 2: hào quang đỏ cam bao quanh xe tăng
+      const pulse = 0.28 + Math.sin(worldTime * 9) * 0.1;
+      const cx = r.x + r.w / 2, cy = r.y + r.h * 0.55;
+      const g = ctx.createRadialGradient(cx, cy, r.w * 0.1, cx, cy, r.w * 0.62);
+      g.addColorStop(0, `rgba(255, 90, 30, ${pulse})`);
+      g.addColorStop(1, 'rgba(255, 90, 30, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, r.w * 0.62, 0, Math.PI * 2); ctx.fill();
+    }
+    if (boss.dead) ctx.globalAlpha = clamp(1 - (boss.deadT - 0.7) / 0.5, 0, 1);
+    if (bossSprite.complete && bossSprite.naturalWidth > 0) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(bossSprite, r.x + shakeX, r.y, r.w, r.h);
+    } else {
+      // Placeholder tạm nếu chưa có ảnh assets/boss-tank.png
+      ctx.fillStyle = '#2b2f2a'; roundedRect(r.x + r.w * 0.03, r.y + r.h * 0.78, r.w * 0.94, r.h * 0.22, 8); ctx.fill();
+      ctx.fillStyle = '#4f6b3a'; roundedRect(r.x + r.w * 0.05, r.y + r.h * 0.42, r.w * 0.9, r.h * 0.4, 8); ctx.fill();
+      ctx.fillStyle = '#5d7c43'; roundedRect(r.x + r.w * 0.25, r.y + r.h * 0.16, r.w * 0.5, r.h * 0.32, 8); ctx.fill();
+      ctx.fillStyle = '#3d5230'; ctx.fillRect(r.x, r.y + r.h * 0.2, r.w * 0.34, r.h * 0.08);
+    }
+    ctx.restore();
+  }
+  function drawBossLaser() {
+    const a = boss.attack;
+    if (!a || state !== 'running') return;
+    const m = bossMuzzle();
+    const prog = clamp(1 - a.t / (a.type === 'shell' ? BOSS_CFG.telegraph : BOSS_CFG.missileWindup), 0, 1);
+    const pulse = 0.5 + Math.sin(worldTime * 30) * 0.5;
+    ctx.save();
+    ctx.lineCap = 'round';
+    if (a.type === 'shell') {
+      // Đường laser đỏ mờ cảnh báo 0,7 giây trước khi đạn bay ra
+      const y = bossLaneY(a.lane);
+      ctx.shadowColor = '#ff2a2a'; ctx.shadowBlur = 10;
+      ctx.strokeStyle = `rgba(255, 50, 50, ${0.16 + prog * 0.22 + pulse * 0.08})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(m.x, y); ctx.lineTo(0, y); ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = `rgba(255, 200, 200, ${0.22 + prog * 0.3})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(m.x, y); ctx.lineTo(0, y); ctx.stroke();
+      ctx.fillStyle = `rgba(255, 60, 60, ${0.4 + pulse * 0.4})`;
+      ctx.beginPath(); ctx.arc(m.x, y, 4 + prog * 3, 0, Math.PI * 2); ctx.fill();
+    } else {
+      // Tên lửa: vệt cam ngắn báo hiệu độ cao sắp phóng
+      ctx.setLineDash([8, 7]);
+      ctx.strokeStyle = `rgba(255, 150, 50, ${0.25 + prog * 0.3})`;
+      ctx.lineWidth = 2;
+      a.salvo.forEach(sv => { ctx.beginPath(); ctx.moveTo(m.x, sv.y); ctx.lineTo(m.x - 90, sv.y); ctx.stroke(); });
+    }
+    ctx.restore();
+  }
+  function drawBossShell(s) {
+    const g = ctx.createLinearGradient(s.x + s.w, 0, s.x + s.w + 48, 0);
+    g.addColorStop(0, 'rgba(255, 170, 60, .6)');
+    g.addColorStop(1, 'rgba(255, 170, 60, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(s.x + s.w - 2, s.y - 3, 50, 6);
+    ctx.fillStyle = '#3a3f3a';
+    roundedRect(s.x, s.y - s.h / 2, s.w, s.h, 6); ctx.fill();
+    ctx.fillStyle = '#d6a24a';
+    roundedRect(s.x, s.y - s.h / 2, s.w * 0.32, s.h, 5); ctx.fill();
+    ctx.fillStyle = '#7a2d1f';
+    ctx.fillRect(s.x + s.w * 0.78, s.y - s.h / 2, 4, s.h);
+  }
+  function drawBossMissile(m) {
+    const flick = Math.sin(worldTime * 50) * 4;
+    ctx.fillStyle = `rgba(255, 140, 40, ${0.75 + Math.sin(worldTime * 40) * 0.2})`;
+    ctx.beginPath();
+    ctx.moveTo(m.x + m.w - 2, m.y - 4);
+    ctx.lineTo(m.x + m.w + 18 + flick, m.y);
+    ctx.lineTo(m.x + m.w - 2, m.y + 4);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#8a2a2a'; // cánh đuôi
+    ctx.beginPath();
+    ctx.moveTo(m.x + m.w - 12, m.y - m.h / 2 + 2); ctx.lineTo(m.x + m.w, m.y - m.h / 2 - 4); ctx.lineTo(m.x + m.w, m.y);
+    ctx.moveTo(m.x + m.w - 12, m.y + m.h / 2 - 2); ctx.lineTo(m.x + m.w, m.y + m.h / 2 + 4); ctx.lineTo(m.x + m.w, m.y);
+    ctx.fill();
+    ctx.fillStyle = '#d9dedb';
+    roundedRect(m.x + 8, m.y - m.h / 2 + 2, m.w - 10, m.h - 4, 5); ctx.fill();
+    ctx.fillStyle = '#d63b2f'; // đầu đạn
+    ctx.beginPath();
+    ctx.moveTo(m.x + 12, m.y - m.h / 2 + 2); ctx.lineTo(m.x, m.y); ctx.lineTo(m.x + 12, m.y + m.h / 2 - 2);
+    ctx.closePath(); ctx.fill();
+  }
+  function drawPlayerShot(s) {
+    const pos = shotPos(s);
+    const next = shotPos({ ...s, t: s.t + 0.02 });
+    const ang = Math.atan2(next.y - pos.y, next.x - pos.x);
+    ctx.save();
+    ctx.translate(pos.x, pos.y);
+    if (s.kind === 'bomb') {
+      ctx.rotate(s.t * 9);
+      ctx.fillStyle = '#23272b';
+      ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      ctx.beginPath(); ctx.arc(-3, -3, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c9a063'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(3, -14); ctx.stroke();
+      ctx.fillStyle = '#ffd34d';
+      ctx.beginPath(); ctx.arc(3, -14, 2.5 + Math.sin(worldTime * 40), 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.rotate(ang);
+      ctx.fillStyle = 'rgba(255, 160, 50, .85)';
+      ctx.beginPath(); ctx.moveTo(-14, -3); ctx.lineTo(-26 + Math.sin(worldTime * 50) * 3, 0); ctx.lineTo(-14, 3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e4e8e4'; roundedRect(-14, -4, 26, 8, 4); ctx.fill();
+      ctx.fillStyle = '#d63b2f';
+      ctx.beginPath(); ctx.moveTo(12, -4); ctx.lineTo(20, 0); ctx.lineTo(12, 4); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function drawBossPickup(p) {
+    const bob = Math.sin(worldTime * 4 + p.phase) * 2;
+    ctx.save();
+    ctx.translate(0, bob);
+    ctx.shadowColor = '#ffd34d'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#5b7a3a';
+    roundedRect(p.x, p.y, p.w, p.h, 5); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#2f4620'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ffd34d';
+    ctx.fillRect(p.x + 3, p.y + 3, p.w - 6, 3);
+    ctx.font = `${Math.round(p.h * 0.62)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.kind === 'bomb' ? '💣' : '🚀', p.x + p.w / 2, p.y + p.h / 2 + 3);
+    ctx.restore();
+  }
+  function drawBlast(b) {
+    const p = 1 - b.life / b.max;
+    const r = b.r * (0.35 + 0.65 * p);
+    ctx.save();
+    ctx.globalAlpha = clamp(1 - p, 0, 1);
+    const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r);
+    g.addColorStop(0, '#fff6c2');
+    g.addColorStop(0.45, b.color || '#ffa63a');
+    g.addColorStop(1, 'rgba(255, 90, 30, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // =====================================================================
+  // V22 — TÂN · NÉM CHỔI: chổi cán đỏ đầu vàng xoay tròn bay ~360px phía trước, hất văng chướng ngại
+  // =====================================================================
+  const IMMUNE_SKILL_CHARS = ['duy', 'murat', 'duyquandoi', 'toduy', 'tien', 'trieu', 'tan', 'phat', 'onghai', 'quang']; // kỹ năng miễn nhiễm va chạm
+  const BROOM_RANGE = 360;     // tầm bay của mỗi cây chổi (px)
+  const BROOM_SPEED = 780;     // tốc độ bay (px/s)
+  const BROOM_INTERVAL = 0.36; // nhịp ném (giây)
+    let megaBroomThrown = false;
+  function throwBroom(mega = false) {
+    brooms.push({
+      x0: player.x + player.width * 0.8,
+      y: mega ? groundY - player.height * 0.65 : player.y + player.height * 0.5,
+      travel: 0,
+      angle: 0,
+      mega
+    });
+    if (mega) {
+      screenShake = Math.max(screenShake, 0.14);
+      playTone(280, 0.22, 'sawtooth', 0.045);
+    }
+  }
+  function updateBrooms(dt) {
+    brooms.forEach(b => {
+      b.travel += (b.mega ? 1050 : BROOM_SPEED) * dt;
+      b.angle += (b.mega ? 12 : 17) * dt;
+    });
+    brooms = brooms.filter(b => b.travel < (b.mega ? width + 120 : BROOM_RANGE));
+  }
+  function broomHits(x, w) {
+    return brooms.some(b => {
+      const bx = b.x0 + b.travel;
+      const hitRadius = b.mega ? 85 : 36;
+      return x < bx + hitRadius && x + w > bx - hitRadius;
+    });
+  }
+  function drawBroom(x, y, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.translate(-8, 0);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#8f1d1d'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(-24, 0); ctx.lineTo(14, 0); ctx.stroke();
+    ctx.strokeStyle = '#e53935'; ctx.lineWidth = 3.6;
+    ctx.beginPath(); ctx.moveTo(-24, 0); ctx.lineTo(14, 0); ctx.stroke();
+    ctx.fillStyle = '#ff7a2f';
+    ctx.beginPath(); ctx.moveTo(12, -3); ctx.lineTo(21, -12); ctx.lineTo(21, 12); ctx.lineTo(12, 3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f1d23f';
+    ctx.beginPath(); ctx.moveTo(21, -12); ctx.lineTo(42, -16); ctx.lineTo(42, 16); ctx.lineTo(21, 12); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(160, 125, 20, .75)'; ctx.lineWidth = 1.2;
+    for (let i = -12; i <= 12; i += 6) { ctx.beginPath(); ctx.moveTo(22, i * 0.9); ctx.lineTo(42, i * 1.2); ctx.stroke(); }
+    ctx.restore();
+  }
+  function drawBrooms() {
+    brooms.forEach(b => {
+      const maxDist = b.mega ? width + 120 : BROOM_RANGE;
+      const t = b.travel / maxDist;
+      ctx.save();
+      ctx.globalAlpha = b.mega ? 1 : clamp(1 - Math.max(0, t - 0.75) / 0.25, 0, 1);
+      ctx.translate(b.x0 + b.travel, b.y - (b.mega ? 0 : Math.sin(t * Math.PI) * 10));
+      if (b.mega) {
+        ctx.scale(2.5, 2.5);
+        ctx.shadowColor = '#ffd34d';
+        ctx.shadowBlur = 16;
+      }
+      drawBroom(0, 0, b.angle);
+      ctx.restore();
+    });
+  }
+  
+
+  // =====================================================================
+  // V23 — PHÁT · TÍCH NỘ QUYỀN CHỦ ĐỘNG
+  // Nạp Nộ: +10 mỗi chướng ngại vượt qua (hoặc đạn / tên lửa Boss né được), +10 mỗi 250m. Đủ Nộ → bấm nút / E / S,
+  // hoặc tự kích hoạt cứu nguy khi sắp va chạm. Trong lúc bật chiêu: miễn nhiễm 100% + 1 trong 3 hiệu ứng, không tích thêm Nộ.
+  // =====================================================================
+  // =====================================================================
+  // V24 — ÔNG HAI · LÀO THỦ TU TIÊN (bay trên điếu cày, nhả vòng khói)
+  // =====================================================================
+  const ONGHAI_RING_RANGE = 380;
+  const ONGHAI_RING_SPEED = 760;
+  const ONGHAI_RING_INTERVAL = 0.45;
+  const ONGHAI_LAND_CLEAR = 180;
+  const onghaiActiveNow = () => selectedCharacter === 'onghai' && state === 'running' && skillTriggered && elapsedRun < skillActiveUntil;
+
+  function onghaiPipe() {
+    const len = player.width * 2.1;
+    const cx = player.x + player.width * 0.5;
+    const cy = player.y + player.height * 0.97;
+    const ang = -0.1 + Math.sin(worldTime * 3) * 0.025;
+    const thick = Math.max(9, player.height * 0.09);
+    const cos = Math.cos(ang), sin = Math.sin(ang);
+    const at = (lx, ly) => ({ x: cx + lx * cos - ly * sin, y: cy + lx * sin + ly * cos });
+    return { len, cx, cy, ang, thick, mouth: at(len * 0.4, -thick * 1.9), tail: at(-len * 0.5, 0) };
+  }
+  const onghaiCanKnock = (o) => o.type === 'can' || (o.type === 'beachSign' && o.variant !== 'ground') || o.type === 'coconutTree';   // [GĐ2] thêm tán dừa
+
+  function updateSmokeRings(dt) {
+    smokeRings.forEach(r => { r.travel += ONGHAI_RING_SPEED * dt; });
+    smokeRings = smokeRings.filter(r => r.travel < ONGHAI_RING_RANGE);
+  }
+  function smokeRingHits(x, w) {
+    return smokeRings.some(r => { const rx = r.x0 + r.travel; return x < rx + 26 && x + w > rx - 26; });
+  }
+
+  function onghaiClearAhead() {
+    const front = player.x + player.width + ONGHAI_LAND_CLEAR;
+    obstacles.forEach(o => {
+      if (!o.wipedByOngHai && o.x < front && o.x + o.w > player.x - 10) {
+        o.wipedByOngHai = true;
+        burst(o.x + o.w / 2, o.y + o.h / 2, 8, false, '#e9e4d2');
+      }
+    });
+    waterPits.forEach(p => { if (p.x < front && p.x + p.w > player.x - 10) p.filled = true; });
+  }
+
+  function onghaiEndRoll() {
+    onghaiRolled = true;
+    const roll = Math.random();
+    if (roll < 0.60) {
+      nextSkillAt = skillActiveUntil + Math.round(skillInterval() * 0.85 * 10) / 10;
+      phatPopup('ÊM ÁI · HỒI CHIÊU -15%', '#8ff0a4');
+      playTone(660, 0.14, 'triangle', 0.035);
+    } else if (roll < 0.90) {
+      let extra = 5 + Math.random() * 7;
+      if (bossMode) extra *= BOSS_SKILL_MULT;
+      extra = Math.round(extra * 10) / 10;
+      skillActiveUntil += extra;
+      nextSkillAt = skillActiveUntil + skillInterval();
+      onghaiGold = true;
+      phatPopup(`TU TIÊN · +${extra}s BAY!`, '#ffd34d');
+      burst(player.x + player.width * 0.5, player.y + player.height * 0.6, 22, false, '#ffd34d');
+      playTone(880, 0.2, 'triangle', 0.04);
+    } else {
+      phatPopup('TẮT ĐIẾU · HẠ CÁNH', '#d0d0d0');
+      playTone(220, 0.16, 'sawtooth', 0.03);
+    }
+  }
+
+  function onghaiStep(dt, skillActive) {
+    if (selectedCharacter !== 'onghai' || state !== 'running') return;
+    if (skillActive) {
+      onghaiFlying = true;
+      const target = groundY - player.height * 1.4 + Math.sin(worldTime * 3) * 6;
+      player.y += (target - player.y) * Math.min(1, dt * 8);
+      player.velocityY = 0; player.onGround = false; groundPlatform = null;
+      onghaiPuffTimer -= dt;
+      if (onghaiPuffTimer <= 0) {
+        onghaiPuffTimer = 0.05;
+        const t = onghaiPipe().tail;
+        particles.push({ x: t.x, y: t.y, vx: -vfxRandom(70, 150), vy: vfxRandom(-35, 5), g: -18, life: vfxRandom(0.5, 0.85), maxLife: 0.85, size: vfxRandom(3, 6.5), dust: true, color: Math.random() < 0.5 ? 'rgba(245,245,245,.85)' : 'rgba(165,165,165,.8)' });
+      }
+      onghaiRingTimer -= dt;
+      if (onghaiRingTimer <= 0) {
+        onghaiRingTimer = ONGHAI_RING_INTERVAL;
+        const m = onghaiPipe().mouth;
+        smokeRings.push({ x0: m.x, y: m.y, travel: 0, gold: onghaiGold });
+        playTone(vfxRandom(300, 380), 0.07, 'sine', 0.02);
+      }
+    } else if (onghaiFlying) {
+      onghaiFlying = false; onghaiGold = false; onghaiLanding = true;
+      burst(player.x + player.width * 0.5, player.y + player.height, 14, false, '#e8c46a');
+    }
+    if (onghaiLanding) {
+      onghaiClearAhead();
+      if (player.onGround) {
+        onghaiLanding = false;
+        screenShake = Math.max(screenShake, 0.1);
+        burst(player.x + player.width * 0.5, groundY - 2, 16, true);
+        playTone(150, 0.2, 'sawtooth', 0.04);
+      }
+    }
+  }
+
+  function drawOngHaiPipe() {
+    const p = onghaiPipe();
+    const L = p.len, T = p.thick;
+    ctx.save();
+    ctx.translate(p.cx, p.cy); ctx.rotate(p.ang);
+    if (onghaiGold) { ctx.shadowColor = '#ffd34d'; ctx.shadowBlur = 16; }
+    ctx.fillStyle = '#5e3b1c';
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.34, T * 0.4); ctx.lineTo(-L * 0.04, T * 0.4); ctx.lineTo(-L * 0.08, T * 1.5); ctx.lineTo(-L * 0.30, T * 1.5);
+    ctx.closePath(); ctx.fill();
+    const g = ctx.createLinearGradient(0, -T / 2, 0, T / 2);
+    g.addColorStop(0, '#e8c46a'); g.addColorStop(0.5, '#c9953a'); g.addColorStop(1, '#8a5a1c');
+    ctx.fillStyle = g;
+    roundedRect(-L / 2, -T / 2, L, T, T / 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#7a4c14'; ctx.lineWidth = 2;
+    [-0.28, -0.05, 0.2].forEach(n => { ctx.beginPath(); ctx.moveTo(L * n, -T / 2); ctx.lineTo(L * n, T / 2); ctx.stroke(); });
+    ctx.strokeStyle = 'rgba(255,240,180,.55)';
+    ctx.beginPath(); ctx.moveTo(-L / 2 + T / 2, -T * 0.2); ctx.lineTo(L / 2 - T / 2, -T * 0.2); ctx.stroke();
+    const bx = L * 0.4;
+    ctx.fillStyle = '#6b4423';
+    ctx.beginPath();
+    ctx.moveTo(bx - T * 0.45, -T * 0.4); ctx.lineTo(bx - T * 0.7, -T * 1.7); ctx.lineTo(bx + T * 0.7, -T * 1.7); ctx.lineTo(bx + T * 0.45, -T * 0.4);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#2b1a0d';
+    ctx.beginPath(); ctx.ellipse(bx, -T * 1.7, T * 0.7, T * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgba(255,120,40,${0.6 + Math.sin(worldTime * 18) * 0.3})`;
+    ctx.beginPath(); ctx.arc(bx, -T * 1.72, T * 0.18, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3a240f';
+    ctx.beginPath(); ctx.ellipse(-L / 2 + T * 0.15, 0, T * 0.28, T * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  function drawSmokeRings() {
+    smokeRings.forEach(r => {
+      const t = r.travel / ONGHAI_RING_RANGE;
+      const rad = 9 + t * 20;
+      ctx.save();
+      ctx.globalAlpha = clamp(1 - t * t, 0, 1) * 0.9;
+      ctx.lineWidth = 5 - t * 2.5;
+      ctx.strokeStyle = r.gold ? '#ffd34d' : 'rgba(240,240,240,.95)';
+      if (r.gold) { ctx.shadowColor = '#ffb300'; ctx.shadowBlur = 12; }
+      ctx.beginPath(); ctx.arc(r.x0 + r.travel, r.y, rad, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = r.gold ? 'rgba(255,245,200,.9)' : 'rgba(150,150,150,.7)';
+      ctx.beginPath(); ctx.arc(r.x0 + r.travel, r.y, Math.max(2, rad - 4), 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function phatNeed() { return (upgrades.phat || 1) >= 2 ? 85 : 100; }
+  function phatSelected() { return selectedCharacter === 'phat'; }
+  function phatActiveNow() { return phatSelected() && state === 'running' && skillTriggered && elapsedRun < skillActiveUntil; }
+  function phatSugarOn() { return phatActiveNow() && phatEffect === 'sugar' && !bossMode; }
+  function phatReady() { return phatSelected() && state === 'running' && !phatActiveNow() && phatRage >= phatNeed(); }
+  const PHAT_EFFECT_NAME = { integral: '∫ f(x)dx', sugar: 'C₁₂H₂₂O₁₁', prob: 'P = 0.2' };
+
+  function phatPopup(text, color, x = player.x + player.width * 0.5, y = player.y - 4) {
+    phatFx.push({ x: x + vfxRandom(-12, 12), y, text, color, life: 0.95, max: 0.95 });
+    if (phatFx.length > 24) phatFx.shift();
+  }
+  function phatAddRage(amount) {
+    if (!phatSelected() || state !== 'running' || phatActiveNow()) return; // đang bật chiêu: không tích thêm Nộ
+    const need = phatNeed();
+    if (phatRage >= need) return;
+    phatRage = Math.min(need, phatRage + amount);
+    phatPopup(`+${amount} C₆H₁₂O₆`, '#8ff5ff');
+    if (phatRage >= need) {
+      showToast('ĐỦ NỘ! Bấm nút ⚡ (hoặc phím E / S) để kích hoạt Tích Nộ Quyền.');
+      playTone(880, 0.16, 'triangle', 0.04);
+    }
+  }
+  function phatActivate(auto = false) {
+    if (!phatReady()) return false;
+    skillTriggered = true;
+    runSkillCount++; window.LimitedEvent?.onSkillUse?.(runSkillCount); // V24.1: nhiệm vụ sự kiện 20/11
+    const duration = Math.round(skillDuration() * (auto ? 0.5 : 1) * 10) / 10;
+    skillActiveUntil = elapsedRun + duration;
+    phatRage = 0;
+    const r = Math.random(); // quay xác suất P(A) — dùng Math.random (không dùng gameRand để không lệch seed Solo)
+    phatEffect = r < 0.5 ? 'integral' : (r < 0.8 ? 'sugar' : 'prob');
+    const cx = player.x + player.width / 2, cy = player.y + player.height / 2;
+    const prefix = auto ? 'TỰ KÍCH HOẠT CỨU NGUY! ' : 'TÍCH NỘ QUYỀN! ';
+    if (phatEffect === 'integral') {
+      waterPits.forEach(pit => { if (pit.x < width + 40) pit.filled = true; });
+      burst(cx, cy, 24, false, '#19d3c5');
+      showToast(`${prefix}Tích phân diện tích ∫ f(x)dx: lấp hố nước, xóa vật cản tầm thấp trong ${duration} giây!`);
+    } else if (phatEffect === 'sugar') {
+      burst(cx, cy, 24, false, '#ffb02e');
+      showToast(`${prefix}Hưng phấn đường huyết C₁₂H₂₂O₁₁: ×2 Coin trong ${duration} giây!`);
+    } else {
+      let healed = false;
+      if (spareHits < runMaxSpare) { spareHits++; healed = true; updateShield(false); }
+      burst(cx, cy, 24, false, '#c58bff');
+      showToast(`${prefix}Đột biến xác suất P = 0.2: vật cản → +35 Coin/vật${healed ? ' · hồi +1 giáp' : ''} trong ${duration} giây!`);
+    }
+    phatPopup(PHAT_EFFECT_NAME[phatEffect], '#ffffff', cx, player.y - 22);
+    playTone(auto ? 330 : 520, 0.22, 'sawtooth', 0.045);
+    return true;
+  }
+  // Sắp va chạm mà đang đầy Nộ → tự kích hoạt để cứu nguy (trả về true nếu đã cứu được).
+  function phatAutoSave() {
+    return phatReady() && phatActivate(true);
+  }
+  function phatIsLowObstacle(o) {
+    return o.y + o.h >= groundY - 24 || (o.type === 'can' && o.lane === 'low');
+  }
+  // Hiệu ứng của chiêu lên từng chướng ngại vật phía trước (∫: xóa vật cản tầm thấp · P = 0.2: đổi thành Coin).
+  function phatAffect(o) {
+    if (o.wipedByPhat || o.convertedByPhat || groundPlatform === o) return;
+    if (!(o.x < player.x + player.width + 400 && o.x + o.w > player.x - 6)) return;
+    const ox = o.x + o.w / 2, oy = o.y + o.h / 2;
+    if (phatEffect === 'integral') {
+      if (!phatIsLowObstacle(o)) return;
+      o.wipedByPhat = true;
+      burst(ox, oy, 10, false, '#19d3c5');
+      if (lightningCooldown <= 0) { lightningCooldown = 0.12; playTone(vfxRandom(500, 760), 0.06, 'sine', 0.025); }
+    } else if (phatEffect === 'prob') {
+      o.convertedByPhat = true;
+      const coin = bossMode ? 0 : 35 * (runItems.magnet ? 2 : 1); // Boss: thưởng cố định, không cộng thêm Coin
+      if (coin) { coinBalance += coin; runCoins += coin; saveEconomy(); }
+      phatPopup(coin ? `+${coin} 🪙` : 'P = 0.2', '#ffe27a', ox, oy - 6);
+      burst(ox, oy, 10, false, '#c58bff');
+      if (lightningCooldown <= 0) { lightningCooldown = 0.12; playTone(vfxRandom(700, 980), 0.06, 'triangle', 0.03); }
+    }
+  }
+
+  function quangActiveNow() { return selectedCharacter === 'quang' && state === 'running' && skillTriggered && elapsedRun < skillActiveUntil; }
+  function quangDuration() { return skillDuration('quang'); }
+  function quangCooldown() { return skillInterval('quang'); }
+  function quangKnockObstacle(o, shockwave = false) {
+    if (!o || o.knockedByQuang || o.type === 'scaffold') return;
+    o.knockedByQuang = true;
+    knockedObstacles.push({ ...o, vx: vfxRandom(260, 520), vy: vfxRandom(-760, -470), spin: vfxRandom(-13, 13), angle: 0, life: 1.45, knocked: true });
+    burst(o.x + o.w / 2, o.y + o.h / 2, shockwave ? 16 : 10, false, vfxRandom(0, 1) < 0.5 ? '#ff6a21' : '#ffd34d');
+    screenShake = Math.max(screenShake, shockwave ? 0.13 : 0.055);
+    o.knockedByQuang = true;
+  }
+  function quangShockwave() {
+    const left = player.x - 20, right = player.x + player.width + 180;
+    obstacles.forEach(o => { if (o.x + o.w >= left && o.x <= right) quangKnockObstacle(o, true); });
+    obstacles = obstacles.filter(o => !o.knockedByQuang);
+    waterPits.forEach(pit => { if (pit.x + pit.w >= left && pit.x <= right) pit.filled = true; });
+    burst(player.x + player.width + 70, groundY - 8, 30, false, '#ffb52e');
+    screenShake = Math.max(screenShake, 0.16);
+    playTone(120, 0.24, 'sawtooth', 0.055);
+  }
+  function activateQuangSkill() {
+    if (state !== 'running' || selectedCharacter !== 'quang' || quangActiveNow() || elapsedRun < nextSkillAt) return false;
+    skillTriggered = true;
+    runSkillCount++; window.LimitedEvent?.onSkillUse?.(runSkillCount); // V24.1: nhiệm vụ sự kiện 20/11
+    const duration = quangDuration();
+    skillActiveUntil = elapsedRun + duration;
+    nextSkillAt = skillActiveUntil + quangCooldown();
+    quangWasActive = true;
+    quangStartedAt = elapsedRun;
+    if (!player.onGround || player.y + player.height < groundY - 2) {
+      const airborneY = player.y + player.height * 0.55;
+      burst(player.x + player.width * 0.5, airborneY, 12, false, '#ff9a36');
+      player.y = groundY - player.height;
+      player.velocityY = 0; player.onGround = true; groundPlatform = null;
+      burst(player.x + player.width * 0.5, groundY - 3, 18, true, '#7beaff');
+    }
+    playTone(74, 0.42, 'sawtooth', 0.085);
+    playTone(148, 0.3, 'triangle', 0.045);
+    burst(player.x + player.width * 0.55, groundY - 8, 28, false, '#ff6b22');
+    showToast(`🔥 GOD RIDER! Mô tô tăng tốc 1,45× trong ${duration.toFixed(1)} giây — miễn nhiễm và cán văng mọi vật cản!`);
+    return true;
+  }
+
+  function activateSkill() {
+    skillTriggered = true;
+    runSkillCount++; window.LimitedEvent?.onSkillUse?.(runSkillCount); // V24.1: nhiệm vụ sự kiện 20/11
+    const duration = skillDuration();
+    skillActiveUntil = elapsedRun + duration;
+    lightningCooldown = 0;
+    if (selectedCharacter === 'duy') {
+      showToast(`HÀNH QUÂN kích hoạt: Duy xuyên chướng ngại vật trong ${duration} giây!`);
+      burst(player.x + player.width / 2, player.y + player.height / 2, 24);
+      playTone(300, 0.18, 'sawtooth', 0.035);
+    } else if (selectedCharacter === 'trong') {
+      showToast(`SÉT kích hoạt: sấm sét phá chướng ngại vật trong ${duration} giây!`);
+      lightningFlash = 0.4;
+      playTone(180, 0.24, 'sawtooth', 0.05);
+    } else if (selectedCharacter === 'duyquandoi') {
+      squadY = [player.y, player.y];
+      squadConverted = false;
+      showToast(`CHI VIỆN kích hoạt: tiểu đội Duy hộ tống, miễn nhiễm va chạm trong ${duration} giây!`);
+      burst(player.x + player.width / 2, player.y + player.height / 2, 26);
+      playTone(260, 0.2, 'sawtooth', 0.035);
+    } else if (selectedCharacter === 'tien') {
+      showToast(`ANH EM “SÉT” kích hoạt: Duy & Trọng “Sét” chạy cùng, miễn nhiễm va chạm và phóng sét trong ${duration} giây!`);
+      lightningFlash = 0.4;
+      burst(player.x + player.width / 2, player.y + player.height / 2, 28);
+      playTone(200, 0.24, 'sawtooth', 0.05);
+    } else if (selectedCharacter === 'trieu') {
+      showToast(`VUA LÝ THUYẾT kích hoạt! Luồng chữ hất văng chướng ngại trong ${duration} giây!`);
+      burst(player.x + player.width / 2, player.y + player.height * 0.35, 30);
+      playTone(740, 0.2, 'triangle', 0.045);
+    
+    } else if (selectedCharacter === 'tan') {
+      broomTimer = 0;
+            megaBroomThrown = false;
+      
+      showToast(`NÉM CHỔI kích hoạt: Tân miễn nhiễm va chạm và liên tục ném chổi hất văng chướng ngại trong ${duration} giây!`);
+      burst(player.x + player.width / 2, player.y + player.height * 0.5, 24, false, '#ffcf4d');
+      playTone(520, 0.18, 'triangle', 0.04);
+    } else if (selectedCharacter === 'onghai') {
+      onghaiRolled = false; onghaiGold = false; onghaiRingTimer = 0; onghaiPuffTimer = 0;
+      showToast(`LÀO THỦ TU TIÊN: Ông Hai cưỡi điếu cày bay ${duration} giây, miễn nhiễm va chạm và nhả vòng khói hất văng vật cản!`);
+      burst(player.x + player.width / 2, player.y + player.height * 0.9, 24, false, '#e8c46a');
+      playTone(330, 0.22, 'triangle', 0.04);
+    } else if (selectedCharacter === 'toduy') {
+      showToast(`NINJA kích hoạt: katana chém đứt chướng ngại vật phía trước trong ${duration} giây!`);
+      burst(player.x + player.width / 2, player.y + player.height / 2, 18);
+      playTone(880, 0.12, 'sawtooth', 0.03);
+    } else {
+      muRatCloneX = player.x + player.width * 0.55;
+      showToast(`LƯỚT LƯỚT: Mu Rát hóa hồn ma, bản sao lướt xuyên chướng ngại vật trong ${duration} giây!`);
+      burst(player.x + player.width / 2, player.y + player.height / 2, 28);
+      playTone(620, 0.2, 'triangle', 0.04);
+    }
+  }
+
+  // Kiểm tra bệ đỡ dưới chân (xe buýt / giàn giáo). Ngay khi chân vượt mép bệ,
+  // trạng thái tiếp đất bị huỷ để trọng lực áp dụng và nhân vật rơi xuống.
+  function validateSupport() {
+    if (groundPlatform) {
+      const platformStillExists = obstacles.includes(groundPlatform) || platforms.includes(groundPlatform);
+      const footLeft = player.x + player.width * 0.28;
+      const footRight = player.x + player.width * 0.72;
+      const overlaps = platformStillExists &&
+        footRight > groundPlatform.x + 1 &&
+        footLeft < groundPlatform.x + groundPlatform.w - 1;
+      const feetAligned = Math.abs((player.y + player.height) - groundPlatform.y) <= 6;
+      if (overlaps && feetAligned && player.velocityY >= 0) {
+        player.y = groundPlatform.y - player.height;
+        player.velocityY = 0;
+        player.onGround = true;
+      } else {
+        // Chân đã vượt mép bệ (hoặc bệ biến mất / chân không còn sát mặt bệ): huỷ tiếp đất ngay
+        // để trọng lực áp dụng trong cùng khung hình, không để nhân vật lơ lửng.
+        groundPlatform = null;
+        player.onGround = false;
+      }
+    }
+    // Lưới an toàn: "đứng trên đất" nhưng chân cao hơn mặt đường mà không có bệ đỡ -> rơi.
+    if (player.onGround && !groundPlatform && player.y + player.height < groundY - 1) {
+      player.onGround = false;
+    }
+  }
+
+  function update(dt) {
+    worldTime += dt;
+    const previousQuangBoost = quangSpeedApplied;
+    if (quangSpeedApplied) { speed /= 1.45; quangSpeedApplied = false; }
+    if (state === 'running') worldDistance += speed * (previousQuangBoost ? 1.45 : 1) * dt;
+    clouds.forEach(cloud => {
+      cloud.x -= cloud.speed * dt;
+      if (cloud.x < -90) { cloud.x = width + vfxRandom(10, 120); cloud.y = vfxRandom(22, height * 0.36); }
+    });
+
+    if (state === 'running') {
+      elapsedRun += dt;
+      // First activation follows the base interval; every later cooldown starts after the active window ends.
+      if (hasTimedSkill() && selectedCharacter !== 'quang' && elapsedRun >= nextSkillAt) {
+        activateSkill();
+        // Cooldown is a full, independent interval AFTER the skill expires.
+        // This prevents upgraded duration (Lv.3) from eating into the cooldown.
+        nextSkillAt = skillActiveUntil + skillInterval();
+      }
+      if (selectedCharacter === 'onghai' && skillTriggered && !onghaiRolled && elapsedRun >= skillActiveUntil) onghaiEndRoll();
+      const skillActive = elapsedRun < skillActiveUntil && skillTriggered;
+      if (selectedCharacter === 'quang' && quangWasActive && !skillActive && skillActiveUntil > 0) {
+        quangWasActive = false;
+        quangShockwave();
+      }
+      if (selectedCharacter === 'duyquandoi') {
+        if (skillTriggered && !skillActive && skillActiveUntil > 0 && !squadConverted) {
+          squadGuards = Math.min(2, squadGuards + 2);
+          squadConverted = true;
+          if (squadGuards > 0) showToast('CHI VIỆN KẾT THÚC! 2 đồng đội ở lại hộ vệ, đỡ thay tối đa 2 lần va chạm.');
+        }
+        if (skillActive || squadGuards > 0) {
+          // Hai bản sao tiếp tục bám theo player.y, kể cả sau khi Chi viện kết thúc.
+          squadY[0] += (player.y - squadY[0]) * Math.min(1, dt * 20);
+          squadY[1] += (player.y - squadY[1]) * Math.min(1, dt * 12);
+        }
+      }
+      if (selectedCharacter === 'murat' && skillActive) {
+        muRatCloneX += speed * dt * 1.75;
+        if (muRatCloneX > width + player.width + 30) muRatCloneX = -player.width;
+      }
+            if (selectedCharacter === 'tan' && skillActive) {
+        const timeLeft = skillActiveUntil - elapsedRun;
+        if (timeLeft <= 0.4 && !megaBroomThrown) {
+          megaBroomThrown = true;
+          throwBroom(true);
+        } else if (timeLeft > 0.4) {
+          broomTimer -= dt;
+          if (broomTimer <= 0) { throwBroom(false); broomTimer = BROOM_INTERVAL; }
+        }
+            }
+      
+      updateBrooms(dt);
+      updateSmokeRings(dt);
+      knockedObstacles.forEach(o => { o.x += (o.vx - speed * 0.35) * dt; o.y += o.vy * dt; o.vy += 780 * dt; o.angle += o.spin * dt; o.life -= dt; });
+      knockedObstacles = knockedObstacles.filter(o => o.life > 0 && o.y < height + 120);
+      lightningStrikes.forEach(strike => { strike.life -= dt; strike.x -= speed * dt * 0.35; });
+      lightningStrikes = lightningStrikes.filter(strike => strike.life > 0);
+      lightningCooldown = Math.max(0, lightningCooldown - dt);
+      lightningStrikeTimer = Math.max(0, lightningStrikeTimer - dt);
+
+      if (!bossMode && !racingMode && routeStage < mapRoute.length && score >= mapMarkAt(routeStage)) {
+        const target = mapRoute[routeStage];
+        routeStage++;
+        switchMap(target, routeStage === 1);
+      }
+      if (bossMode) {
+        speed = BOSS_CFG.scroll; // tốc độ cuộn cố định trong trận Boss
+      } else if (cityMode || beachMode || villageMode) {   // [GĐ2]
+        cityElapsed += dt;
+        // City starts more slowly, then gradually ramps up to the normal late-game pace.
+        // Bãi Biển Hoàng Hôn: nhịp độ nhanh hơn một chút (+4%, trần 655).
+        const cityTarget = beachSunset ? Math.min(655, (231 + cityElapsed * 13.5) * 1.04) : Math.min(625, 231 + cityElapsed * 13.5);
+        speed += (cityTarget * (villageMode ? windMul() : 1) - speed) * Math.min(1, dt * 1.5);   // [GĐ3-B2] gió
+      } else {
+        speed = Math.min(690, speed + dt * 5.5);
+      }
+      const quangNow = quangActiveNow();
+      if (quangNow) {
+        speed *= 1.45;
+        quangSpeedApplied = true;
+        quangBikePhase += dt * 34;
+      } else { quangBikePhase *= Math.max(0, 1 - dt * 5); }
+
+      if (!bossMode) {
+        score += dt * (speed / 9.4);
+        if (selectedCharacter === 'quang' && !quangPassiveBoost && score >= 1000) {
+          quangPassiveBoost = true;
+          if (quangWasActive) nextSkillAt = skillActiveUntil + quangCooldown();
+          else nextSkillAt = Math.max(elapsedRun, nextSkillAt - quangCooldown() * (0.15 / 0.85));
+          showToast('⚡ NỘI TẠI QUANG: TĂNG TỐC! Hồi chiêu GOD RIDER giảm vĩnh viễn 15% trong ván này.');
+          playTone(980, 0.18, 'triangle', 0.05);
+        }
+        while (score >= phatNextMark) { phatNextMark += 250; phatAddRage(PHAT_RAGE_PER_250M); } // Phát: +10 Nộ mỗi 250m
+        if (selectedCharacter === 'trieu') {
+          [[2000, 'NỘI TẠI I: HỒI CHIÊU -1 GIÂY'], [3000, 'NỘI TẠI II: DUY TRÌ +1 GIÂY'], [4000, 'NỘI TẠI III: HỒI CHIÊU -2 GIÂY'], [5000, 'NỘI TẠI IV: DUY TRÌ +1 GIÂY']].forEach(([mark, msg]) => {
+            if (score >= mark && !trieuMilestones.has(mark)) { trieuMilestones.add(mark); showToast(msg); }
+          });
+        }
+        awardCoinsForScore();
+        if (score >= 3333) refreshCharacterLocks();
+        spawnTimer -= dt;
+      } else spawnTimer = 99;
+      if (spawnTimer <= 0) {
+        addObstacle();
+        const difficulty = clamp((speed - 300) / 500, 0, 0.48);
+        spawnTimer = random(cityMode ? 0.92 : 1.05, cityMode ? 1.42 : 1.62) - difficulty * (cityMode ? 0.45 : 1);
+        if (cityMode) spawnTimer = Math.max(0.95, spawnTimer / CITY_OBSTACLE_RATE);
+        // V23: cân bằng Bãi Biển — nhịp ra vật cản dày hơn một chút (trước: 1.05 / 1.0–1.5); Hoàng Hôn dày thêm ~7%.
+        if (beachMode) spawnTimer = Math.max(0.92, random(0.88, 1.32) - difficulty * 0.4) * (beachSunset ? 0.93 : 1);
+        if (cityNight) { spawnTimer += nightPad; nightPad = 0; }   // [GĐ1]
+        if (villageMode) spawnTimer = Math.max(0.95, random(1.0, 1.4) - difficulty * 0.4);   // [GĐ2] nhịp vật cản làng quê
+      }
+
+      // Scroll platforms before checking whether the player is still supported.
+      platforms.forEach(platform => { platform.x -= speed * dt; });
+      platforms = platforms.filter(platform => platform.x + platform.w > -20);
+      if (cityMode && !cityNight) {   // [GĐ1] Night City không có giàn giáo
+        // Spawn a new scaffold only after the previous one is almost behind the player.
+        // The long ground gap between decks makes the route alternate naturally.
+        nextScaffoldX -= speed * dt;
+        if (nextScaffoldX < width + 145 && platforms.length < 4) {
+                    const deckX = Math.max(width + 115, nextScaffoldX);
+          const soloScaffold = window.gameRand() < 0.70;
+          if (soloScaffold) {
+            
+
+            // Frequent standalone scaffold: a clear, readable jump-and-land opportunity.
+            const deckW = random(165, 205);
+            const deckY = groundY - random(82, 108);
+            platforms.push({ x: deckX, y: deckY, w: deckW, h: 14, type: 'scaffold', passed: false, solo: true });
+            nextScaffoldX = deckX + deckW + cityGroundGap() * 0.92;
+          } else {
+            // Less frequent and less punishing scaffold + wall combination.
+            const deckY = groundY - random(104, 118);
+            const firstW = random(132, 150);
+            const gap = random(12, 22);
+            const secondW = random(132, 150);
+            const secondX = deckX + firstW + gap;
+            platforms.push({ x: deckX, y: deckY, w: firstW, h: 14, type: 'scaffold', passed: false });
+            platforms.push({ x: secondX, y: deckY + random(-3, 3), w: secondW, h: 14, type: 'scaffold', passed: false });
+
+            const upperW = random(105, 122);
+            const upperY = deckY - random(48, 60);
+            const upperOnLeft = window.gameRand() < 0.5;
+            const upperX = upperOnLeft
+              ? deckX + random(0, Math.max(0, firstW - upperW) * 0.25)
+              : secondX + Math.max(0, secondW - upperW) - random(0, Math.max(0, secondW - upperW) * 0.25);
+            platforms.push({ x: upperX, y: upperY, w: upperW, h: 14, type: 'scaffold', passed: false, upperVariant: upperOnLeft ? 'left' : 'right' });
+
+            // Shorter wall and a more generous landing gap than the previous build.
+            const wallX = secondX + secondW + random(34, 52);
+            const wallW = random(54, 66);
+            const wallH = Math.min(groundY - upperY - player.height * 0.42, random(92, 108));
+            obstacles.push({ x: wallX, y: groundY - wallH, w: wallW, h: wallH, type: 'wall', passed: false, cityWall: true, scaffoldVariant: upperOnLeft ? 'upper-left' : 'upper-right' });
+            nextScaffoldX = wallX + wallW + cityGroundGap() * 1.05;
+          }
+        }
+      }
+
+      validateSupport();
+
+      player.runPhase += dt * speed * 0.055;
+      const previousBottom = player.y + player.height;
+      if (!player.onGround) {
+        player.velocityY += player.gravity * dt;
+        // Lv3 Tiến gốc: sau khi nhảy kép, tốc độ rơi giảm 15% (lướt nhẹ, dễ căn bệ)
+        player.y += player.velocityY * dt * (player.floaty && player.velocityY > 0 ? 0.85 : 1);
+        if (player.y >= groundY - player.height) {
+          player.y = groundY - player.height;
+          player.velocityY = 0;
+          player.onGround = true;
+          groundPlatform = null;
+          burst(player.x + player.width * 0.42, groundY - 1, 3, true);
+        }
+      }
+
+      onghaiStep(dt, skillActive);
+      if (beachMode || villageMode) {   // [GĐ2] sông lớn dùng chung hệ hố nước của Bãi Biển
+        if (villageMode) { updateVillageDecor(dt); updateWind(dt); }   // [GĐ3-B2]   // [GĐ2] cuộn cây dừa trang trí
+        // Phát · ∫ f(x)dx: mọi hố nước đã hiện trên màn hình đều được lấp đầy
+        if (skillActive && selectedCharacter === 'phat' && phatEffect === 'integral') waterPits.forEach(pit => { if (pit.x < width + 40) pit.filled = true; });
+        if (skillActive && selectedCharacter === 'quang') {
+          waterPits.forEach(pit => {
+            if (!pit.filled && pit.x < player.x + player.width + 90 && pit.x + pit.w > player.x - 30) {
+              pit.filled = true;
+              burst(player.x + player.width * 0.6, groundY - 4, 12, false, '#70e8ff');
+            }
+          });
+        }
+        updateWaterPits(dt, skillActive);
+      }
+
+      obstacles.forEach(obstacle => {
+        // [GĐ1] Night City: xe buýt chờ rồi lao 1.45x · lon bia 1.35x
+        if (obstacle.nightBus && obstacle.wait > 0) obstacle.wait -= dt;
+        else obstacle.x -= speed * (obstacle.type === 'tractor' ? 0.55 : obstacle.nightBus ? NIGHT_BUS_MULT : obstacle.nightCan ? NIGHT_CAN_MULT : 1) * dt;   // [GĐ3-B1] máy cày 0.55x
+        if (obstacle.type === 'beachSign' && obstacle.variant === 'mid') updateMidSign(obstacle, dt);
+        if (obstacle.type === 'can' && !obstacle.fixedY) {   // [GĐ1] lon Night bay độ cao cố định
+          obstacle.y += Math.sin(worldTime * obstacle.bobSpeed + obstacle.bobOffset) * 7 * dt;
+        }
+        if (!obstacle.passed && obstacle.x + obstacle.w < player.x) {
+          obstacle.passed = true;
+          if (!obstacle.ignored) phatAddRage(PHAT_RAGE_PER_OBSTACLE); // Phát: vượt chướng ngại vật +10 Nộ
+          if (!bossMode) {
+            score += 4;
+            if (selectedCharacter === 'quang' && !quangPassiveBoost && score >= 1000) {
+              quangPassiveBoost = true;
+              if (quangWasActive) nextSkillAt = skillActiveUntil + quangCooldown();
+              else nextSkillAt = Math.max(elapsedRun, nextSkillAt - quangCooldown() * (0.15 / 0.85));
+              showToast('⚡ NỘI TẠI QUANG: TĂNG TỐC! Hồi chiêu GOD RIDER giảm vĩnh viễn 15% trong ván này.');
+            }
+            awardCoinsForScore();
+          }
+        }
+
+        // Triều: luồng chữ VUA LÝ THUYẾT hất văng chướng ngại phía trước.
+        if (selectedCharacter === 'trieu' && skillActive && !obstacle.knockedByTrieu &&
+            obstacle.x < player.x + player.width + 390 && obstacle.x + obstacle.w > player.x + player.width * 0.25) {
+          obstacle.knockedByTrieu = true;
+          knockedObstacles.push({ ...obstacle, vx: vfxRandom(180, 360), vy: vfxRandom(-620, -390), spin: vfxRandom(-9, 9), angle: 0, life: 1.7 });
+        }
+
+        // Tân: chổi xoay đang bay hất văng mọi chướng ngại nó quét qua (tái sử dụng hiệu ứng knockedObstacles của Triều).
+        if (brooms.length && !obstacle.knockedByTan && broomHits(obstacle.x, obstacle.w)) {
+          obstacle.knockedByTan = true;
+          knockedObstacles.push({ ...obstacle, vx: vfxRandom(180, 360), vy: vfxRandom(-620, -390), spin: vfxRandom(-9, 9), angle: 0, life: 1.7, knocked: true });
+          burst(obstacle.x + obstacle.w / 2, obstacle.y + obstacle.h / 2, 8, false, '#ffcf4d');
+          if (lightningCooldown <= 0) { lightningCooldown = 0.12; playTone(vfxRandom(420, 620), 0.06, 'triangle', 0.025); }
+        }
+        // Ông Hai: vòng khói hất văng vật cản tầm trung/cao (không phá vật sát đất)
+        if (smokeRings.length && !obstacle.knockedByOngHai && onghaiCanKnock(obstacle) && smokeRingHits(obstacle.x, obstacle.w)) {
+          obstacle.knockedByOngHai = true;
+          knockedObstacles.push({ ...obstacle, vx: vfxRandom(180, 360), vy: vfxRandom(-620, -390), spin: vfxRandom(-9, 9), angle: 0, life: 1.7, knocked: true });
+          burst(obstacle.x + obstacle.w / 2, obstacle.y + obstacle.h / 2, 8, false, '#e9e4d2');
+        }
+        // Mu Rát: bóng ma lướt lên phía trước làm tan biến chướng ngại vật chạm phải
+        if (selectedCharacter === 'murat' && skillActive && !obstacle.ghostCleared &&
+            muRatCloneX + player.width * 0.8 > obstacle.x && muRatCloneX + player.width * 0.2 < obstacle.x + obstacle.w) {
+          obstacle.ghostCleared = true;
+          burst(obstacle.x + obstacle.w / 2, obstacle.y + obstacle.h / 2, 12, false, '#72eaff');
+          playTone(vfxRandom(650, 950), 0.06, 'sine', 0.02);
+                                 }
+        
+        // Ninja: katana chém đứt đôi mọi chướng ngại trong tầm chém (cả trên không khi nhân vật nhảy).
+        if (selectedCharacter === 'toduy' && skillActive && !obstacle.destroyedByNinja && groundPlatform !== obstacle) {
+          const bandTop = player.y - 64;
+          const bandBottom = player.y + player.height + 28;
+          if (obstacle.x < player.x + player.width + NINJA_REACH &&
+              obstacle.x + obstacle.w > player.x + player.width * 0.2 &&
+              obstacle.y + obstacle.h > bandTop && obstacle.y < bandBottom) {
+            ninjaSlice(obstacle);
+          }
+        }
+
+        // Sét clears obstacles in front of Trọng while the skill is active.
+        if ((selectedCharacter === 'trong' || selectedCharacter === 'tien') && skillActive && !obstacle.destroyedByLightning &&
+            obstacle.x > player.x - 4 && obstacle.x < player.x + 360) {
+          obstacle.destroyedByLightning = true;
+          // Every destroyed obstacle gets a visible cloud-and-bolt effect; no per-obstacle timer race.
+          lightningFlash = 0.28;
+          lightningStrikes.push({
+            x: obstacle.x + obstacle.w / 2,
+            y: obstacle.y + obstacle.h * 0.45,
+            life: 0.62,
+            maxLife: 0.62
+          });
+          burst(obstacle.x + obstacle.w / 2, obstacle.y + obstacle.h / 2, 14);
+          if (lightningCooldown <= 0) {
+            lightningCooldown = 0.18;
+            playTone(vfxRandom(520, 900), 0.07, 'square', 0.025);
+          }
+        }
+        // GOD RIDER: đầu xe quét vật cản trên mọi độ cao, hất văng thay vì chỉ xuyên qua.
+        if (skillActive && selectedCharacter === 'quang' && !obstacle.knockedByQuang &&
+            obstacle.x < player.x + player.width + 38 && obstacle.x + obstacle.w > player.x + player.width * 0.15) {
+          quangKnockObstacle(obstacle);
+        }
+        // Phát: hiệu ứng của chiêu lên chướng ngại vật phía trước
+        if (skillActive && selectedCharacter === 'phat') phatAffect(obstacle);
+      });
+      obstacles.forEach(unlinkCoconutDecor);   // [GĐ3-A2] phá tán → xóa thân
+      obstacles = obstacles.filter(obstacle => !obstacle.wipedByPhat && !obstacle.convertedByPhat && obstacle.x + obstacle.w > -30 && !obstacle.destroyedByLightning && !obstacle.destroyedByNinja && !obstacle.knockedByTrieu && !obstacle.knockedByTan && !obstacle.knockedByQuang && !obstacle.knockedByOngHai && !obstacle.wipedByOngHai && !obstacle.ghostCleared && !obstacle.knockedByRainbow);
+      validateSupport(); // bus đã dịch chuyển xong: kiểm tra lại bệ đỡ ngay trong cùng khung hình
+
+      // Swept one-way landing on bus roofs and scaffold decks; side/front contact remains dangerous.
+      const landingSurfaces = [...obstacles.filter(o => o.type === 'bus' || o.type === 'tractor'), ...platforms];   // [GĐ3-B1]
+      if (!player.onGround && player.velocityY > 0) {
+        for (const surface of landingSurfaces) {
+          const footLeft = player.x + player.width * 0.28;
+          const footRight = player.x + player.width * 0.72;
+          const horizontallyOverlapping = footRight > surface.x + 1 &&
+            footLeft < surface.x + surface.w - 1;
+          const bottom = player.y + player.height;
+          const landingTolerance = Math.max(30, player.velocityY * dt + 12);
+          if (horizontallyOverlapping && previousBottom <= surface.y + 12 &&
+              bottom >= surface.y - 2 && bottom <= surface.y + landingTolerance) {
+            player.y = surface.y - player.height;
+            player.velocityY = 0;
+            player.onGround = true;
+            groundPlatform = surface;
+            burst(player.x + player.width * 0.45, surface.y, 4, true);
+            break;
+          }
+        }
+      }
+
+      // Nhảy kép tự hồi ngay khi chân chạm đất, nóc xe buýt hoặc giàn giáo.
+      if (player.onGround || groundPlatform) { player.airJumpsLeft = airJumpsMax(); player.floaty = false; }
+
+      // Nhiệm vụ: đếm mỗi lần tông vào một chiếc xe buýt (đáp lên nóc xe không tính).
+      obstacles.forEach(obstacle => {
+        if (obstacle.type !== 'bus' || obstacle.hitCounted || groundPlatform === obstacle || onghaiFlying) return;
+        const landingOnTop = player.velocityY >= 0 &&
+          player.x + player.width * 0.72 > obstacle.x &&
+          player.x + player.width * 0.28 < obstacle.x + obstacle.w &&
+          player.y + player.height <= obstacle.y + 16;
+        if (!landingOnTop && checkCollision(obstacle)) { obstacle.hitCounted = true; runBusHits++; }
+      });
+
+      // Hành quân ignores collision while its 10-second window is active.
+      if (!(skillActive && IMMUNE_SKILL_CHARS.includes(selectedCharacter))) {
+        obstacles.forEach(obstacle => {
+          if (phatActiveNow()) return; // Phát vừa tự kích hoạt trong khung hình này → miễn nhiễm ngay
+          if ((obstacle.type === 'bus' || obstacle.type === 'tractor') && player.onGround && groundPlatform === obstacle) return;   // [GĐ3-B1]
+          if (checkCollision(obstacle)) {
+            // Falling onto a bus is a landing, not a crash.
+            if ((obstacle.type === 'bus' || obstacle.type === 'tractor') && player.velocityY >= 0 &&
+                player.x + player.width * 0.72 > obstacle.x &&
+                player.x + player.width * 0.28 < obstacle.x + obstacle.w &&
+                player.y + player.height <= obstacle.y + 16) return;
+            if (rainbowActive()) { knockRainbow(obstacle); return; }   // [L4] bất tử cầu vồng: hất văng
+            if (phatAutoSave()) { obstacle.ignored = true; return; } // Phát đầy Nộ: tự kích hoạt cứu nguy
+            if (bossMode) {
+              // Trận Boss: trúng thùng/rào mất 1 giáp/tim + bất tử tạm 1,2 giây (không chết ngay)
+              if (boss.invuln <= 0) { obstacle.ignored = true; hurtBossPlayer(); }
+              return;
+            }
+            if (consumeSquadGuard()) {
+              obstacle.ignored = true;
+            } else if (spareHits > 0) {
+              spareHits--;
+              updateShield(true);
+              obstacle.ignored = true;
+              burst(player.x + player.width * 0.5, player.y + player.height * 0.5, 20);
+              showToast(`GIÁP BẢO HỘ! Đã đỡ va chạm, còn ${spareHits} lượt chịu đòn.`);
+              playTone(250, 0.16, 'triangle', 0.045);
+            } else {
+              endGame();
+            }
+          }
+        });
+      }
+      if (!bossMode) updateRainbowItems(dt);   // [L4] di chuyển + nhặt Sò Nui 7 Màu
+      updateBossFight(dt, skillActive);
+      lightningFlash = Math.max(0, lightningFlash - dt);
+    }
+
+    phatFx.forEach(f => { f.life -= dt; f.y -= 36 * dt; });
+    phatFx = phatFx.filter(f => f.life > 0);
+    sliceFX.forEach(f => { f.life -= dt; f.o.x -= (state === 'running' ? speed : 0) * dt * 0.9; });
+    sliceFX = sliceFX.filter(f => f.life > 0);
+    slashFX.forEach(f => { f.life -= dt; f.x -= (state === 'running' ? speed : 0) * dt * 0.9; });
+    slashFX = slashFX.filter(f => f.life > 0);
+    particles.forEach(p => {
+      p.life -= dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += (p.g === undefined ? 340 : p.g) * dt;
+    });
+    particles = particles.filter(p => p.life > 0);
+    screenShake = Math.max(0, screenShake - dt);
+    if (bossMode) { updateBossFX(dt); updateBossHud(); }
+    updateHud();
+    window.Multiplayer?.onUpdate(dt);
+    window.Racing?.onUpdate(dt);
+  }
+
+  function checkCollision(obstacle) {
+        if (obstacle.ignored) return false;
+    const isMuRat = selectedCharacter === 'murat';
+    const pw = isMuRat ? player.height * 0.30 : Math.max(player.width * 0.52, player.height * 0.30);
+    const px = isMuRat ? player.x + player.width * 0.42 : player.x + player.width * 0.25 - (pw - player.width * 0.52) / 2;
+    const py = player.y + player.height * 0.12;
+    const ph = player.height * 0.84;
+    
+    if (obstacle.type === 'wall') {
+      const ox = obstacle.x + 2, oy = obstacle.y + 2;
+      const ow = obstacle.w - 4, oh = obstacle.h - 2;
+      return px < ox + ow && px + pw > ox && py < oy + oh && py + ph > oy;
+    }
+    if (obstacle.type === 'bus' || obstacle.type === 'tractor') {   // [GĐ3-B1]
+      // Deliberately rectangular hitbox around the visible bus body.
+      const ox = obstacle.x + obstacle.w * 0.06;
+      const oy = obstacle.y + obstacle.h * 0.12;
+      const ow = obstacle.w * 0.88;
+      const oh = obstacle.h * 0.86;
+      return px < ox + ow && px + pw > ox && py < oy + oh && py + ph > oy;
+    }
+    if (obstacle.type === 'beachSign') {
+      // Biển hiệu treo cao: chỉ tính phần bảng (cột trụ chỉ là nền, không va chạm).
+      const ox = obstacle.x + 2, oy = obstacle.y + 1, ow = obstacle.w - 4, oh = obstacle.h - 2;
+      return px < ox + ow && px + pw > ox && py < oy + oh && py + ph > oy;
+    }
+    if (obstacle.type === 'coconutTree') {   // [GĐ2] chỉ tán + chùm dừa treo cao mới va chạm
+      return px < obstacle.x + obstacle.w && px + pw > obstacle.x && py < obstacle.y + obstacle.h && py + ph > obstacle.y;
+    }
+    if (obstacle.type === 'umbrella') {
+      // Tán dù (nửa trên) + cột dù (hẹp, nửa dưới).
+      const cx = obstacle.x + obstacle.w * 0.05, cy = obstacle.y + obstacle.h * 0.05, cw = obstacle.w * 0.9, ch = obstacle.h * 0.45;
+      const sx = obstacle.x + obstacle.w * 0.43, sy = obstacle.y + obstacle.h * 0.5, sw = obstacle.w * 0.14, sh = obstacle.h * 0.5;
+      return (px < cx + cw && px + pw > cx && py < cy + ch && py + ph > cy) ||
+             (px < sx + sw && px + pw > sx && py < sy + sh && py + ph > sy);
+    }
+    const isCan = obstacle.type === 'can';
+    const ox = obstacle.x + obstacle.w * (isCan ? 0.16 : 0.12);
+    const oy = obstacle.y + obstacle.h * (isCan ? 0.10 : 0.08);
+    const ow = obstacle.w * (isCan ? 0.68 : 0.76);
+    const oh = obstacle.h * (isCan ? 0.80 : 0.90);
+    return px < ox + ow && px + pw > ox && py < oy + oh && py + ph > oy;
+  }
+
+  function drawBackground() {
+    if (villageMode) { drawVillageBackground(); return; }   // [GĐ2]
+    if (cityMode) {
+      if (cityNight) drawNightCityBackground(); else drawCityBackground();   // [GĐ1]
+      return;
+    }
+    if (beachMode) {
+      drawBeachBackground();
+      return;
+    }
+    const sky = ctx.createLinearGradient(0, 0, 0, height);
+    sky.addColorStop(0, '#edf5d9');
+    sky.addColorStop(1, '#f8f8e9');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, width, height);
+
+    // Soft sun and drifting clouds.
+    ctx.fillStyle = 'rgba(203, 230, 145, .48)';
+    ctx.beginPath();
+    ctx.arc(width * 0.82, height * 0.20, Math.min(37, height * 0.13), 0, Math.PI * 2);
+    ctx.fill();
+    clouds.forEach(c => drawCloud(c.x, c.y, c.scale));
+
+    // Distant rounded hills.
+    ctx.fillStyle = '#dce9bf';
+    ctx.beginPath();
+    ctx.moveTo(0, groundY - 21);
+    for (let x = 0; x <= width + 30; x += 30) {
+      const y = groundY - 23 - Math.sin(x * 0.011 + worldTime * 0.2) * 10 - Math.sin(x * 0.023) * 4;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(width, groundY + 2); ctx.lineTo(0, groundY + 2); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#d1e2af';
+    ctx.beginPath();
+    ctx.moveTo(0, groundY - 7);
+    for (let x = 0; x <= width + 25; x += 25) {
+      ctx.lineTo(x, groundY - 11 - Math.sin(x * 0.015 + 1.2) * 6);
+    }
+    ctx.lineTo(width, groundY + 3); ctx.lineTo(0, groundY + 3); ctx.closePath(); ctx.fill();
+
+    // Ground strip.
+    ctx.fillStyle = '#e5edcf';
+    ctx.fillRect(0, groundY, width, height - groundY);
+    ctx.strokeStyle = '#789c63';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, groundY + 0.5); ctx.lineTo(width, groundY + 0.5); ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(89, 132, 72, .22)';
+    ctx.lineWidth = 1.5;
+    const offset = state === 'running' ? (worldDistance * 1.0) % 64 : worldTime * 8 % 64;
+    for (let x = -offset; x < width + 40; x += 64) {
+      ctx.beginPath(); ctx.moveTo(x, groundY + 13); ctx.lineTo(x + 20, groundY + 13); ctx.stroke();
+    }
+    for (let x = 22; x < width; x += 97) {
+      const gx = (x - (state === 'running' ? worldDistance * 0.5 : worldTime * 14) % (width + 30) + width + 30) % (width + 30);
+      ctx.fillStyle = 'rgba(100, 148, 75, .38)';
+      ctx.fillRect(gx, groundY + 22 + (x % 2) * 4, 3, 2);
+    }
+  }
+
+  function drawCityBackground() {
+    const sky = ctx.createLinearGradient(0, 0, 0, height);
+    sky.addColorStop(0, '#b8e3f5');
+    sky.addColorStop(0.72, '#e4f3ef');
+    sky.addColorStop(1, '#f2f5e9');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = 'rgba(255, 237, 154, .72)';
+    ctx.beginPath(); ctx.arc(width * .82, height * .17, Math.min(30, height * .10), 0, Math.PI * 2); ctx.fill();
+    clouds.forEach(c => drawCloud(c.x, c.y, c.scale * .8));
+
+    const scroll = (state === 'running' ? worldDistance * .22 : worldTime * 25) % 210;
+    for (let i = -1; i < Math.ceil(width / 210) + 2; i++) {
+      const x = i * 210 - scroll;
+      const seed = (i + 20) % 3;
+      const bw = 105 + seed * 22;
+      const bh = height * (0.31 + seed * 0.07);
+      const by = groundY - bh;
+      ctx.fillStyle = ['#a8c9d5', '#91b8c8', '#b7d0d8'][seed];
+      roundedRect(x, by, bw, bh, 5); ctx.fill();
+      ctx.fillStyle = 'rgba(245,251,238,.72)';
+      for (let wy = by + 14; wy < groundY - 18; wy += 22) {
+        for (let wx = x + 12; wx < x + bw - 10; wx += 20) {
+          ctx.fillRect(wx, wy, 9, 11);
+        }
+      }
+
+    }
+
+    ctx.fillStyle = '#c6d9d0'; ctx.fillRect(0, groundY, width, height - groundY);
+    ctx.fillStyle = '#617e83'; ctx.fillRect(0, groundY, width, 3);
+    ctx.fillStyle = '#f8f1c6';
+    const offset = state === 'running' ? (worldDistance * 1.0) % 80 : worldTime * 8 % 80;
+    for (let x = -offset; x < width + 50; x += 80) ctx.fillRect(x, groundY + 18, 38, 3);
+  }
+
+  // ===== [GĐ1] NIGHT CITY: nền =====
+  const nightHash = (n) => { const v = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
+  function drawNightCityBackground() {
+    const sky = ctx.createLinearGradient(0, 0, 0, groundY);
+    sky.addColorStop(0, '#050816'); sky.addColorStop(0.6, '#10183a'); sky.addColorStop(1, '#2a2b5c');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, width, height);
+
+    // Sao nhấp nháy
+    ctx.fillStyle = '#fffbe8';
+    for (let i = 0; i < 38; i++) {
+      const tw = 0.45 + 0.55 * Math.abs(Math.sin(worldTime * (1 + nightHash(i + 7) * 2) + i));
+      ctx.globalAlpha = 0.25 + 0.6 * tw;
+      const s = i % 5 === 0 ? 2 : 1.4;
+      ctx.fillRect(nightHash(i + 1) * width, nightHash(i + 101) * groundY * 0.55, s, s);
+    }
+    ctx.globalAlpha = 1;
+
+    // Trăng + quầng sáng
+    const mx = width * 0.82, my = height * 0.17, mr = Math.min(26, height * 0.09);
+    const halo = ctx.createRadialGradient(mx, my, mr * 0.6, mx, my, mr * 3);
+    halo.addColorStop(0, 'rgba(210,225,255,.35)'); halo.addColorStop(1, 'rgba(210,225,255,0)');
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(mx, my, mr * 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e8efff'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+
+    // 2 lớp tòa nhà: xa (tối) + gần (bật đèn cửa sổ vàng)
+    const layers = [
+      { period: 170, par: 0.10, col: '#0d1230', win: false, hMin: 0.26, hRange: 0.16, wBase: 80 },
+      { period: 210, par: 0.22, col: '#1a2048', win: true,  hMin: 0.30, hRange: 0.22, wBase: 105 }
+    ];
+    layers.forEach((L, li) => {
+      const off = state === 'running' ? worldDistance * L.par : worldTime * 25 * (L.par / 0.22);
+      const base = Math.floor(off / L.period), sc = off - base * L.period;
+      for (let i = -1; i < Math.ceil(width / L.period) + 2; i++) {
+        const id = base + i + li * 1000;
+        const x = i * L.period - sc;
+        const bw = L.wBase + nightHash(id) * 40;
+        const bh = height * (L.hMin + nightHash(id + 0.5) * L.hRange);
+        const by = groundY - bh;
+        ctx.fillStyle = L.col; roundedRect(x, by, bw, bh, 4); ctx.fill();
+        if (!L.win) continue;
+        for (let wy = by + 14, row = 0; wy < groundY - 18; wy += 22, row++) {
+          for (let wx = x + 12, col = 0; wx < x + bw - 10; wx += 20, col++) {
+            const h = nightHash(id * 31 + col * 7 + row * 13);
+            ctx.fillStyle = h < 0.5 ? '#ffd35a' : (h < 0.62 ? '#ffe9a6' : '#1d2550');
+            ctx.fillRect(wx, wy, 9, 11);
+          }
+        }
+      }
+    });
+
+    // Mặt đường tối + vạch kẻ mờ
+    ctx.fillStyle = '#141829'; ctx.fillRect(0, groundY, width, height - groundY);
+    ctx.fillStyle = '#3b4468'; ctx.fillRect(0, groundY, width, 3);
+    ctx.fillStyle = '#8a8560';
+    const goff = state === 'running' ? worldDistance : worldTime * 8;
+    const dOff = goff % 80;
+    for (let x = -dOff; x < width + 50; x += 80) ctx.fillRect(x, groundY + 18, 38, 3);
+
+    // Cột đèn đường + quầng sáng
+    const lampGap = 260, lb = Math.floor(goff / lampGap), ls = goff - lb * lampGap;
+    for (let i = -1; i < Math.ceil(width / lampGap) + 2; i++) {
+      const lx = i * lampGap - ls + 40;
+      ctx.fillStyle = '#2b3150'; ctx.fillRect(lx, groundY - 64, 3, 64); ctx.fillRect(lx, groundY - 64, 14, 3);
+      const g = ctx.createRadialGradient(lx + 13, groundY - 60, 2, lx + 13, groundY - 60, 62);
+      g.addColorStop(0, 'rgba(255,214,110,.55)'); g.addColorStop(1, 'rgba(255,214,110,0)');
+      ctx.fillStyle = g; ctx.fillRect(lx - 50, groundY - 122, 126, 126);
+    }
+  }
+
+  // ===== [GĐ2] MAP LÀNG QUÊ: nền, sông lớn, cây dừa =====
+  function drawPalmTrunk(x, baseY, topY, lean, lw = 6) {
+    ctx.strokeStyle = '#7a5230'; ctx.lineWidth = lw; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, baseY); ctx.quadraticCurveTo(x + lean * 0.4, (baseY + topY) / 2, x + lean, topY); ctx.stroke();
+    ctx.strokeStyle = 'rgba(60, 35, 15, .45)'; ctx.lineWidth = 1.5;   // vân thân
+    for (let t = 0.2; t < 1; t += 0.2) {
+      const py = baseY + (topY - baseY) * t, px = x + lean * t * t;
+      ctx.beginPath(); ctx.moveTo(px - 3, py); ctx.lineTo(px + 3, py); ctx.stroke();
+    }
+  }
+  function drawPalmFronds(cx, cy, s, sway) {
+    for (let i = 0; i < 6; i++) {                        // 6 tàu lá quạt đều quanh ngọn
+      const a = -Math.PI * 0.95 + i * (Math.PI * 1.9 / 5) + sway;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
+      ctx.fillStyle = i % 2 ? '#2f8f3d' : '#3fa84e';
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(22 * s, -10 * s, 46 * s, 8 * s);
+      ctx.quadraticCurveTo(22 * s, -2 * s, 0, 4 * s); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+  function drawFarPalm(x, baseY) {
+    const top = baseY - 62;
+    drawPalmTrunk(x, baseY, top, 8, 3);
+    drawPalmFronds(x + 8, top, 0.55, 0);
+  }
+  function drawThatchHouse(x, baseY, w) {               // nhà lá: vách gỗ + mái lá
+    const h = w * 0.55;
+    ctx.fillStyle = '#8c6a45'; ctx.fillRect(x, baseY - h, w, h);
+    ctx.fillStyle = '#c9a25b';
+    ctx.beginPath(); ctx.moveTo(x - 8, baseY - h); ctx.lineTo(x + w / 2, baseY - h - w * 0.45); ctx.lineTo(x + w + 8, baseY - h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4a3420'; ctx.fillRect(x + w * 0.4, baseY - h * 0.5, w * 0.2, h * 0.5);
+  }
+  function drawMonkeyBridge(x, y) {                     // cầu khỉ bắc qua rạch nhỏ (trang trí)
+    ctx.fillStyle = '#6cc3d9'; ctx.fillRect(x - 46, y - 8, 92, 6);
+    ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x - 40, y - 2); ctx.quadraticCurveTo(x, y - 30, x + 40, y - 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 40, y - 12); ctx.quadraticCurveTo(x, y - 40, x + 40, y - 12); ctx.stroke();
+  }
+  function drawVillageBackground() {
+    const sky = ctx.createLinearGradient(0, 0, 0, groundY);
+    sky.addColorStop(0, '#9fdcf2'); sky.addColorStop(0.7, '#e6f7fb'); sky.addColorStop(1, '#f3f8e4');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = 'rgba(255, 239, 160, .75)';
+    ctx.beginPath(); ctx.arc(width * 0.8, height * 0.16, Math.min(28, height * 0.09), 0, Math.PI * 2); ctx.fill();
+    clouds.forEach(c => drawCloud(c.x, c.y, c.scale * 0.9));
+
+    // Cánh đồng lúa lớp xa: xanh xen vàng
+    const fieldTop = groundY - 58;
+    ctx.fillStyle = '#9bc85a'; ctx.fillRect(0, fieldTop, width, groundY - fieldTop);
+    for (let y = fieldTop + 4, i = 0; y < groundY; y += 9, i++) {
+      ctx.fillStyle = i % 2 ? '#e4c35a' : '#7fb446';
+      ctx.fillRect(0, y, width, 5);
+    }
+
+    // Lớp parallax: nhà lá, dừa xa, cầu khỉ
+    const period = 230, off = state === 'running' ? worldDistance * 0.25 : worldTime * 12;
+    const base = Math.floor(off / period), sc = off - base * period;
+    for (let i = -1; i < Math.ceil(width / period) + 2; i++) {
+      const x = i * period - sc, id = base + i;
+      if (nightHash(id * 3 + 1) < 0.6) drawThatchHouse(x + 30, groundY, 40 + nightHash(id + 5) * 14);
+      drawFarPalm(x + 140 + nightHash(id + 9) * 30, groundY);
+      if (nightHash(id * 7 + 2) < 0.35) drawMonkeyBridge(x + 190, groundY - 4);
+    }
+
+    // Đường đất làng quê
+    ctx.fillStyle = '#c8a46b'; ctx.fillRect(0, groundY, width, height - groundY);
+    ctx.fillStyle = '#8a6a45'; ctx.fillRect(0, groundY, width, 3);
+    ctx.fillStyle = 'rgba(120, 85, 45, .35)';
+    const doff = state === 'running' ? worldDistance % 80 : (worldTime * 8) % 80;
+    for (let x = -doff; x < width + 50; x += 80) ctx.fillRect(x, groundY + 18, 30, 2);
+  }
+
+  // Sông lớn: vẽ nước + bờ đất + gờ gỗ hai mép; khi đã ∫ f(x)dx lấp thì thành đường đất
+  function drawVillageRiver(pit) {
+    const { x, w } = pit, y = groundY, h = height - groundY;
+    if (pit.filled) {
+      ctx.fillStyle = '#c8a46b'; ctx.fillRect(x - 1, y, w + 2, h);
+      const cols = Math.max(4, Math.floor(w / 14)), bw = w / cols;
+      ctx.fillStyle = 'rgba(25, 211, 197, .38)';
+      for (let i = 0; i < cols; i++) {
+        const bh = 8 + 7 * Math.abs(Math.sin(i * 0.9 + worldTime * 3));
+        ctx.fillRect(x + i * bw + 1, y, bw - 2, bh);
+      }
+      ctx.fillStyle = '#8a6a45'; ctx.fillRect(x - 1, y, w + 2, 3);
+      return;
+    }
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, '#6fcbe0'); g.addColorStop(1, '#2a7fa0');
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(255, 255, 255, .5)'; ctx.lineWidth = 2;   // sóng nước
+    for (let row = 0; row < 3; row++) {
+      const wy = y + 8 + row * 14;
+      ctx.beginPath();
+      for (let px = x + 6; px <= x + w - 6; px += 6) {
+        const yy = wy + Math.sin(px * 0.16 + worldTime * 3.5 + row * 1.3) * 2;
+        if (px === x + 6) ctx.moveTo(px, yy); else ctx.lineTo(px, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#8a5a33'; ctx.fillRect(x - 8, y, 8, 8); ctx.fillRect(x + w, y, 8, 8);   // bờ đất
+    ctx.fillStyle = '#6fae3e'; ctx.fillRect(x - 8, y - 2, 8, 3); ctx.fillRect(x + w, y - 2, 8, 3);   // cỏ mép bờ
+    ctx.fillStyle = '#6b4226';                                                                    // gờ gỗ cọc
+    ctx.fillRect(x - 6, y - 10, 4, 12); ctx.fillRect(x + w + 2, y - 10, 4, 12);
+  }
+
+  function drawVillageDecor() {
+    villageDecor.forEach(d => {
+      if (d.x < -160 || d.x > width + 160) return;
+      ctx.fillStyle = 'rgba(40, 78, 42, .12)';
+      ctx.beginPath(); ctx.ellipse(d.x, groundY + 2, 22 * d.s, 3, 0, 0, Math.PI * 2); ctx.fill();
+      drawPalmTrunk(d.x, groundY + 2, d.top, d.lean, 6);
+      if (d.crown) drawPalmFronds(d.x + d.lean, d.top, d.s, Math.sin(worldTime * 1.6 + d.phase) * 0.08);
+    });
+  }
+
+  // Cây dừa có chùm: tán là vật cản (va chạm theo checkCollision), chùm dừa vàng/xanh treo dưới tán
+  function drawCoconutCanopy(o) {
+    const cx = o.x + o.w / 2, cy = o.y + o.h * 0.35, s = o.w / 84;
+    drawPalmFronds(cx, cy, s, Math.sin(worldTime * 1.6) * 0.06);
+    [[-0.26, 0.45], [0, 0.78], [0.24, 0.5]].forEach(([fx, fy], i) => {
+      ctx.fillStyle = i % 2 ? '#8fc04a' : '#e8c53a';          // dừa xanh / dừa vàng
+      ctx.strokeStyle = '#6b4a1f'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(o.x + o.w * (0.5 + fx), o.y + o.h * fy + 6, 6 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    });
+  }
+
+  // ===== [GĐ3-A2] Tán dừa bị phá → xóa luôn thân trong villageDecor =====
+  function unlinkCoconutDecor(o) {
+    if (o.type !== 'coconutTree' || !o.decorRef) return;
+    if (o.knockedByTrieu || o.knockedByTan || o.knockedByOngHai || o.knockedByQuang ||
+        o.destroyedByNinja || o.destroyedByLightning || o.ghostCleared || o.convertedByPhat) {
+      o.decorRef.dead = true;
+    }
+  }
+
+  // ===== [GĐ3-B1] Xe máy cày nông thôn: đầu hướng trái, bánh sau to có gai ở phải =====
+  function drawTractor(o) {
+    const { x, y, w, h } = o;
+    const rBig = h * 0.34, rSmall = h * 0.2;
+    const bigX = x + w * 0.76, bigY = y + h - rBig;
+    const smX = x + w * 0.18, smY = y + h - rSmall;
+    ctx.fillStyle = '#2b2b2b'; ctx.beginPath(); ctx.arc(bigX, bigY, rBig, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8a8f96';
+    for (let i = 0; i < 8; i++) {
+      const a = worldTime * 6 + i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(bigX + Math.cos(a) * rBig * 0.7, bigY + Math.sin(a) * rBig * 0.7);
+      ctx.lineTo(bigX + Math.cos(a) * (rBig + 3), bigY + Math.sin(a) * (rBig + 3));
+      ctx.lineTo(bigX + Math.cos(a + 0.15) * rBig * 0.7, bigY + Math.sin(a + 0.15) * rBig * 0.7);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#c9ced4'; ctx.beginPath(); ctx.arc(bigX, bigY, rBig * 0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2b2b2b'; ctx.beginPath(); ctx.arc(smX, smY, rSmall, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c9ced4'; ctx.beginPath(); ctx.arc(smX, smY, rSmall * 0.4, 0, Math.PI * 2); ctx.fill();
+    roundedRect(x + w * 0.14, y + h * 0.5, w * 0.8, h * 0.26, 4); ctx.fillStyle = '#d64b3a'; ctx.fill();
+    roundedRect(x + w * 0.12, y + h * 0.28, w * 0.3, h * 0.3, 4); ctx.fillStyle = '#c0392b'; ctx.fill();
+    roundedRect(x + w * 0.4, y, w * 0.4, h * 0.56, 5); ctx.fillStyle = '#2f6fb5'; ctx.fill();
+    ctx.fillStyle = '#bfe8ff'; ctx.fillRect(x + w * 0.46, y + h * 0.1, w * 0.28, h * 0.2);
+    ctx.fillStyle = '#4a4f55'; ctx.fillRect(x + w * 0.2, y + h * 0.02, w * 0.05, h * 0.4);
+    for (let i = 0; i < 3; i++) {
+      const t = (worldTime * 0.8 + i / 3) % 1;
+      ctx.globalAlpha = (1 - t) * 0.45;
+      ctx.fillStyle = '#e9e9e9';
+      ctx.beginPath(); ctx.arc(x + w * 0.225 + t * 8, y + h * 0.02 - t * 36, 4 + t * 6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ===== [GĐ3-B2] Làn gió xuôi (+18%) / ngược (-18%). gameRand cho quyết định, vfxRandom cho hiệu ứng =====
+  const windMul = () => (windDir === 1 ? 1.18 : windDir === -1 ? 0.82 : 1);
+  function updateWind(dt) {
+    if (windDir === 0) {
+      windCool -= dt;
+      if (windCool <= 0) {
+        const wantBack = window.gameRand() < 0.5;
+        // An toàn: không bật gió ngược khi trên màn hình còn Sông lớn (khi đó đổi sang gió xuôi)
+        if (wantBack && waterPits.length === 0) { windDir = -1; showToast('💨 GIÓ NGƯỢC! Tốc độ giảm -18%'); }
+        else { windDir = 1; showToast('🍃 GIÓ XUÔI! Tốc độ tăng +18%'); }
+        windTimer = 3.5 + window.gameRand();                      // 3.5–4.5s
+      }
+    } else {
+      windTimer -= dt;
+      if (windTimer <= 0) { windDir = 0; windCool = 8 + 4 * window.gameRand(); }   // nghỉ 8–12s
+    }
+    if (windDir !== 0 && vfxRandom(0, 1) < 0.35) {
+      windStreaks.push({
+        x: windDir === 1 ? width + 20 : -40,
+        y: vfxRandom(30, groundY - 30),
+        len: vfxRandom(60, 140),
+        vx: windDir === 1 ? -760 : 760,                           // xuôi: phải→trái · ngược: trái→phải
+        life: 2
+      });
+    }
+    windStreaks.forEach(st => { st.x += st.vx * dt; st.life -= dt; });
+    windStreaks = windStreaks.filter(st => st.life > 0 && st.x > -200 && st.x < width + 200);
+  }
+  function drawWindStreaks() {
+    if (!windStreaks.length) return;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineWidth = 2;
+    windStreaks.forEach(st => {
+      const tail = st.vx < 0 ? st.len : -st.len;
+      ctx.strokeStyle = st.vx < 0 ? 'rgba(230, 250, 255, .75)' : 'rgba(255, 248, 224, .7)';
+      ctx.globalAlpha = Math.max(0, Math.min(1, st.life));
+      ctx.beginPath(); ctx.moveTo(st.x, st.y);
+      ctx.quadraticCurveTo(st.x + tail * 0.5, st.y - 6, st.x + tail, st.y); ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  // ===== [L4] SÒ NUI 7 MÀU: nhặt → bất tử cầu vồng =====
+  function rainbowActive() { return state === 'running' && elapsedRun < rainbowUntil; }
+
+  function updateRainbowItems(dt) {
+    rainbowItems.forEach(it => { it.x -= speed * dt; });
+    rainbowItems = rainbowItems.filter(it => it.x + it.w > -30);
+    const px = player.x, py = player.y;
+    rainbowItems = rainbowItems.filter(it => {
+      const hit = px < it.x + it.w && px + player.width > it.x && py < it.y + it.h && py + player.height > it.y;
+      if (hit) collectRainbow(it);
+      return !hit;
+    });
+  }
+
+  function collectRainbow(it) {
+    const until = elapsedRun + it.dur;
+    if (until > rainbowUntil) rainbowUntil = until;             // chỉ cập nhật khi thời gian mới lớn hơn
+    const left = Math.round(rainbowUntil - elapsedRun);
+    showToast(`🌈 SÒ NUI 7 MÀU! Bất tử cầu vồng trong ${left}s!`);
+    playTone(880, 0.14, 'triangle', 0.05);
+    playTone(1320, 0.18, 'sine', 0.04);
+    for (let i = 0; i < 7; i++) {                                 // pháo hoa 7 màu tại nhân vật
+      burst(player.x + player.width * 0.5, player.y + player.height * 0.5, 4, false, `hsl(${i * 51},100%,65%)`);
+    }
+  }
+
+  function knockRainbow(o) {
+    if (o.knockedByRainbow) return;
+    o.knockedByRainbow = true;
+    o.ignored = true;
+    knockedObstacles.push({ ...o, vx: vfxRandom(260, 520), vy: vfxRandom(-760, -470), spin: vfxRandom(-13, 13), angle: 0, life: 1.45, knocked: true });
+    unlinkCoconutDecor(o);                                         // trúng tán dừa thì xóa luôn thân
+    for (let i = 0; i < 7; i++) {                                  // pháo hoa 7 màu khi hất văng
+      burst(o.x + o.w / 2, o.y + o.h / 2, 4, false, `hsl(${i * 51},100%,65%)`);
+    }
+    screenShake = Math.max(screenShake, 0.08);
+  }
+
+  function drawRainbowSoNui(it) {
+    const cx = it.x + it.w / 2, cy = it.y + it.h / 2;
+    const pulse = 1 + 0.12 * Math.sin(worldTime * 6 + it.phase);
+    // Hào quang trắng-ấm phía sau
+    const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 30);
+    glow.addColorStop(0, 'rgba(255,255,255,.55)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, 30, 0, Math.PI * 2); ctx.fill();
+    // [SPRITE] Sò Nui 7 Màu: ảnh cầu vồng, xoay sắc độ theo worldTime
+    const sz = 30 * pulse;
+    if (soNuiRainbowSprite.complete && soNuiRainbowSprite.naturalWidth > 0) {
+      ctx.save();
+      ctx.filter = `hue-rotate(${(worldTime * 120) % 360}deg) saturate(1.4)`;
+      ctx.drawImage(soNuiRainbowSprite, cx - sz / 2, cy - sz / 2, sz, sz);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = `hsl(${(worldTime * 120) % 360},100%,62%)`;   // dự phòng khi chưa tải ảnh
+      ctx.beginPath(); ctx.arc(cx, cy, 9 * pulse, 0, Math.PI * 2); ctx.fill();
+    }
+    // Lấp lánh quanh item
+    for (let i = 0; i < 4; i++) {
+      const a = worldTime * 2 + i * 1.57 + it.phase;
+      ctx.fillStyle = `hsla(${(worldTime * 120 + i * 90) % 360},100%,80%,0.9)`;
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * 20, cy + Math.sin(a) * 15, 2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function drawRainbowAura() {
+    const cx = player.x + player.width * 0.5, cy = player.y + player.height * 0.5;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 7; i++) {                                  // 7 vòng hào quang
+      ctx.strokeStyle = `hsla(${(i * 51 + worldTime * 200) % 360},100%,65%,.55)`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 52 + i * 2.5 + Math.sin(worldTime * 8 + i) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 5; i++) {                                  // hạt bụi cầu vồng bay ngược về sau
+      const t = (worldTime * 1.6 + i * 0.2) % 1;
+      ctx.fillStyle = `hsla(${(i * 72 + worldTime * 200) % 360},100%,70%,${1 - t})`;
+      ctx.beginPath(); ctx.arc(player.x - t * 40 + 10, cy + (i - 2) * 12, 3 * (1 - t) + 1, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawCloud(x, y, scale) {
+    ctx.fillStyle = 'rgba(255, 255, 250, .75)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 6 * scale, 22 * scale, 8 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - 10 * scale, y + 3 * scale, 10 * scale, 9 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 5 * scale, y, 13 * scale, 12 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawCactus(x, y, w, h) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(w / 28, h / 48);
+    ctx.fillStyle = '#398957';
+    roundedRect(7, 7, 13, 41, 5); ctx.fill();
+    roundedRect(0, 21, 9, 6, 3); ctx.fill();
+    roundedRect(0, 15, 5, 12, 2); ctx.fill();
+    roundedRect(18, 16, 10, 6, 3); ctx.fill();
+    roundedRect(23, 8, 5, 14, 2); ctx.fill();
+    ctx.fillStyle = '#80bd73';
+    ctx.fillRect(10, 11, 2, 30); ctx.fillRect(3, 18, 1.5, 5); ctx.fillRect(25, 10, 1.5, 7);
+    ctx.restore();
+  }
+
+  function roundedRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  // ===== [GĐ1] NIGHT CITY: vật cản & hiệu ứng =====
+  function drawSoNuiShell(cx, cy, rx, ry, t) {
+    ctx.fillStyle = ['#f2b441', '#e9a233', '#f7c35a'][t];
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#b9731f'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.strokeStyle = '#c98424';                                   // đường xoắn của vỏ sò
+    ctx.beginPath(); ctx.arc(cx + rx * 0.15, cy, ry * 0.55, Math.PI * 0.2, Math.PI * 1.5); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,225,130,.75)';                       // điểm sáng giòn
+    ctx.beginPath(); ctx.ellipse(cx - rx * 0.3, cy - ry * 0.4, rx * 0.28, ry * 0.18, -0.4, 0, Math.PI * 2); ctx.fill();
+  }
+  function drawSoNui(o) {
+    const step = o.cell * 0.78, rx = o.cell * 0.52, ry = o.cell * 0.43;
+    if (!o.knocked) {
+      ctx.fillStyle = 'rgba(0,0,0,.28)';
+      ctx.beginPath(); ctx.ellipse(o.x + o.w / 2, o.y + o.h + 2, o.w * 0.6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    for (let r = 0; r < o.cols; r++) {                             // kim tự tháp: hàng đáy → đỉnh
+      const n = o.cols - r;
+      const startX = o.x + (o.w - n * o.cell) / 2 + o.cell / 2;
+      const cy = o.y + o.h - ry - r * step - 1;
+      for (let k = 0; k < n; k++) {
+        const sx = startX + k * o.cell;
+        if (soNuiSprite.complete && soNuiSprite.naturalWidth > 0) {   // [SPRITE] vẽ bằng ảnh thật
+          const dw = rx * 2.3, dh = ry * 2.3, flip = (r * 7 + k * 3 + (o.seed | 0)) % 2;
+          ctx.save(); ctx.translate(sx, cy); if (flip) ctx.scale(-1, 1);
+          ctx.drawImage(soNuiSprite, -dw / 2, -dh / 2, dw, dh); ctx.restore();
+        } else {
+          drawSoNuiShell(sx, cy, rx, ry, (r * 7 + k * 3 + (o.seed | 0)) % 3);   // dự phòng khi chưa tải ảnh
+        }
+      }
+    }
+  }
+  function drawNightBusFx(o) {
+    const waiting = o.wait > 0;
+    const fy = o.y + o.h * 0.68, len = waiting ? 90 : 250;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, width, groundY + 4); ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(o.x, 0, o.x - len, 0);      // chùm đèn pha vàng rọi phía trước (bên trái)
+    g.addColorStop(0, waiting ? 'rgba(255,225,120,.28)' : 'rgba(255,230,120,.6)');
+    g.addColorStop(1, 'rgba(255,230,120,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(o.x, fy - 4); ctx.lineTo(o.x - len, fy - o.h * 0.45);
+    ctx.lineTo(o.x - len, fy + o.h * 0.45); ctx.lineTo(o.x, fy + 4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    if (waiting && Math.floor(worldTime * 10) % 2 === 0) {         // dấu "!" đỏ nhấp nháy
+      const cx = o.x + o.w / 2, cy = o.y - 24;
+      ctx.save();
+      ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('!', cx, cy + 1);
+      ctx.restore();
+    }
+  }
+  function drawNightCanTrail(o) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const x0 = o.x + o.w * 0.8, len = 120;
+    [0.25, 0.5, 0.75].forEach((p, i) => {
+      const y = o.y + o.h * p, l = len * (i === 1 ? 1 : 0.65);
+      const g = ctx.createLinearGradient(x0, 0, x0 + l, 0);
+      g.addColorStop(0, 'rgba(255,240,170,.55)'); g.addColorStop(1, 'rgba(255,240,170,0)');
+      ctx.fillStyle = g; ctx.fillRect(x0, y - 2, l, 4);
+    });
+    ctx.restore();
+  }
+
+  function drawCrate(obstacle) {
+    const { x, y, w, h } = obstacle;
+    ctx.fillStyle = '#c88745';
+    roundedRect(x, y, w, h, 4); ctx.fill();
+    ctx.strokeStyle = '#8a5d37'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = '#e7b575'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x + 5, y + 5); ctx.lineTo(x + w - 5, y + h - 5); ctx.moveTo(x + w - 5, y + 5); ctx.lineTo(x + 5, y + h - 5); ctx.stroke();
+  }
+
+  function drawObstacle(o) {
+    if (o.type === 'sonui') { drawSoNui(o); return; }   // [GĐ1]
+    if (o.type === 'coconutTree') { drawCoconutCanopy(o); return; }
+    if (o.type === 'tractor') { drawTractor(o); return; }   // [GĐ3-B1]   // [GĐ2]
+    if (o.type === 'umbrella') { drawUmbrella(o); return; }
+    if (o.type === 'beachSign') { drawBeachSign(o); return; }
+    if (o.type === 'wall') {
+      ctx.fillStyle = '#8d969c';
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.fillStyle = '#b8c0c4';
+      for (let yy = o.y + 8; yy < o.y + o.h; yy += 18) {
+        ctx.fillRect(o.x + 5, yy, o.w - 10, 3);
+      }
+      ctx.strokeStyle = '#657078'; ctx.lineWidth = 2; ctx.strokeRect(o.x, o.y, o.w, o.h);
+      return;
+    }
+    if (o.type === 'bus') {
+      if (o.nightBus && !o.knocked) drawNightBusFx(o);   // [GĐ1] đèn pha + dấu "!"
+      if (busSprite.complete && busSprite.naturalWidth > 0) {
+        ctx.drawImage(busSprite, o.x, o.y, o.w, o.h);
+      } else {
+        ctx.fillStyle = '#1686bd'; ctx.fillRect(o.x, o.y, o.w, o.h);
+        ctx.fillStyle = '#cdeefa'; ctx.fillRect(o.x + o.w * .12, o.y + o.h * .12, o.w * .72, o.h * .30);
+      }
+      return;
+    }
+    if (o.type === 'can') {
+      if (o.nightCan && !o.knocked) drawNightCanTrail(o);   // [GĐ1] vệt sáng đuôi
+      ctx.save();
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = '#33402b';
+      ctx.beginPath();
+      ctx.ellipse(o.x + o.w * 0.5, o.y + o.h + 3, o.w * 0.4, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (canSprite.complete && canSprite.naturalWidth > 0) {
+        ctx.drawImage(canSprite, o.x, o.y, o.w, o.h);
+      } else {
+        ctx.fillStyle = '#c8a72d'; roundedRect(o.x, o.y, o.w, o.h, 8); ctx.fill();
+      }
+      return;
+    }
+    if (o.type === 'barrier') {
+      // Rào chắn sọc vàng-đen (Phase 2 của Boss)
+      ctx.fillStyle = '#6b6f73';
+      ctx.fillRect(o.x + 3, o.y + o.h * 0.35, 5, o.h * 0.65);
+      ctx.fillRect(o.x + o.w - 8, o.y + o.h * 0.35, 5, o.h * 0.65);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(o.x, o.y, o.w, o.h * 0.5); ctx.clip();
+      ctx.fillStyle = '#ffd34d'; ctx.fillRect(o.x, o.y, o.w, o.h * 0.5);
+      ctx.fillStyle = '#2b2b2b';
+      for (let sx = o.x - o.h * 0.5; sx < o.x + o.w; sx += 14) {
+        ctx.beginPath(); ctx.moveTo(sx, o.y + o.h * 0.5); ctx.lineTo(sx + 7, o.y + o.h * 0.5); ctx.lineTo(sx + 7 + o.h * 0.5, o.y); ctx.lineTo(sx + o.h * 0.5, o.y); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+      ctx.strokeStyle = '#2b2b2b'; ctx.lineWidth = 2; ctx.strokeRect(o.x, o.y, o.w, o.h * 0.5);
+      return;
+    }
+    if (o.type === 'tall') { drawCactus(o.x, o.y, o.w, o.h); return; }
+    if (o.type === 'crate') { drawCrate(o); return; }
+    if (o.type === 'double') {
+      drawCactus(o.x, o.y + o.h * 0.06, o.w * 0.55, o.h * 0.94);
+      drawCactus(o.x + o.w * 0.47, o.y, o.w * 0.53, o.h);
+    } else {
+      drawCactus(o.x, o.y, o.w, o.h);
+    }
+    ctx.fillStyle = 'rgba(40, 78, 42, .08)';
+    ctx.beginPath(); ctx.ellipse(o.x + o.w / 2, groundY + 2, o.w * .7, 3, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ----- V23 Phát: hào quang theo hiệu ứng + đồ thị ∫ f(x)dx + chữ nổi -----
+  function drawPhatAura() {
+    const cx = player.x + player.width * 0.5, cy = player.y + player.height * 0.5;
+    const pulse = 0.5 + 0.5 * Math.sin(worldTime * 12);
+    const col = phatEffect === 'sugar' ? [255, 176, 46] : (phatEffect === 'integral' ? [25, 211, 197] : [176, 120, 255]);
+    ctx.save();
+    const r = player.height * (phatEffect === 'sugar' ? 0.95 : 0.78);
+    const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
+    g.addColorStop(0, `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${0.42 + pulse * 0.18})`);
+    g.addColorStop(1, `rgba(${col[0]}, ${col[1]}, ${col[2]}, 0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${0.55 + pulse * 0.25})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, player.width * 0.62, player.height * 0.58, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = '900 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(20, 20, 40, .85)';
+    const label = phatEffect === 'sugar' ? 'C₁₂H₂₂O₁₁ · ×2 COIN' : PHAT_EFFECT_NAME[phatEffect];
+    ctx.strokeText(label, cx, player.y - 8);
+    ctx.fillStyle = `rgb(${col[0]}, ${col[1]}, ${col[2]})`;
+    ctx.fillText(label, cx, player.y - 8);
+    ctx.restore();
+  }
+  function drawPhatFx() {
+    if (state === 'running' && phatActiveNow() && phatEffect === 'integral') {
+      // Đồ thị hàm số xanh ngọc phía trước, tô diện tích bên dưới bằng các cột Riemann
+      const x0 = player.x + player.width * 0.55;
+      const x1 = Math.min(width + 10, x0 + 400);
+      const fy = (x) => groundY - 30 - 16 * Math.sin((x - worldDistance * 0.9) * 0.03) - 7 * Math.sin(x * 0.012 + worldTime * 2.4);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x0, groundY);
+      for (let x = x0; x <= x1; x += 6) ctx.lineTo(x, fy(x));
+      ctx.lineTo(x1, groundY);
+      ctx.closePath();
+      const gr = ctx.createLinearGradient(0, groundY - 60, 0, groundY);
+      gr.addColorStop(0, 'rgba(25, 211, 197, .34)');
+      gr.addColorStop(1, 'rgba(25, 211, 197, .06)');
+      ctx.fillStyle = gr; ctx.fill();
+      ctx.strokeStyle = 'rgba(25, 211, 197, .35)'; ctx.lineWidth = 1;
+      for (let x = x0; x <= x1; x += 14) { ctx.beginPath(); ctx.moveTo(x, groundY); ctx.lineTo(x, fy(x)); ctx.stroke(); }
+      ctx.strokeStyle = '#19d3c5'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+      ctx.shadowColor = '#19d3c5'; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      for (let x = x0; x <= x1; x += 6) { if (x === x0) ctx.moveTo(x, fy(x)); else ctx.lineTo(x, fy(x)); }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.font = '900 14px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#e8fffb';
+      ctx.fillText('∫ f(x)dx', x0 + 12, fy(x0 + 12) - 16);
+      ctx.restore();
+    }
+    if (phatFx.length) {
+      ctx.save();
+      ctx.font = '900 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round'; ctx.lineWidth = 4;
+      phatFx.forEach(f => {
+        ctx.globalAlpha = clamp(f.life / f.max * 1.4, 0, 1);
+        ctx.strokeStyle = 'rgba(15, 25, 40, .85)';
+        ctx.strokeText(f.text, f.x, f.y);
+        ctx.fillStyle = f.color;
+        ctx.fillText(f.text, f.x, f.y);
+      });
+      ctx.restore();
+    }
+  }
+
+  function drawQuangBike() {
+    const t = quangBikePhase;
+    const x = player.x - player.width * 0.24;
+    const y = groundY - 37 + Math.sin(t * 0.45) * 1.2;
+    const w = player.width * 2.05;
+    const wheelR = 13;
+    const frontX = x + w * 0.82, rearX = x + w * 0.18;
+    const wheelY = y + 27;
+    const wheelie = clamp(1 - (elapsedRun - quangStartedAt) / 0.58, 0, 1) * 9;
+    ctx.save();
+    // Speed streaks and exhaust flames: all cosmetic randomness uses vfxRandom only.
+    ctx.globalAlpha = 0.7; ctx.strokeStyle = '#7beaff'; ctx.lineWidth = 2; ctx.shadowColor = '#44dfff'; ctx.shadowBlur = 10;
+    for (let i = 0; i < 5; i++) { const yy = y + 7 + i * 7 + Math.sin(t + i) * 2; ctx.beginPath(); ctx.moveTo(x - 26 - vfxRandom(0, 16), yy); ctx.lineTo(x + 5, yy); ctx.stroke(); }
+    ctx.shadowBlur = 0;
+    // Twin wheels with rotating spokes.
+    [rearX, frontX].forEach((wx, i) => {
+      const wy = i === 1 ? wheelY - wheelie : wheelY;
+      ctx.save(); ctx.translate(wx, wy); ctx.rotate(-t * (i ? 1.18 : 1));
+      ctx.fillStyle = '#10151d'; ctx.strokeStyle = '#9aa8b8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, wheelR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#ff9a28'; ctx.lineWidth = 1.6;
+      for (let a = 0; a < 8; a++) { ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(0, wheelR - 2); ctx.stroke(); }
+      ctx.fillStyle = '#ffcf54'; ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    });
+    // Exhaust flame flicker.
+    ctx.save(); ctx.translate(rearX - 8, wheelY - 8); ctx.shadowColor = '#25dfff'; ctx.shadowBlur = 18;
+    ctx.fillStyle = '#20dfff'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-vfxRandom(20, 38), -vfxRandom(4, 10)); ctx.lineTo(-vfxRandom(14, 30), 4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff8b24'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-vfxRandom(14, 24), -3); ctx.lineTo(-vfxRandom(10, 20), 4); ctx.closePath(); ctx.fill(); ctx.restore();
+    // Sport-bike chassis, fairing, tank and raised front end.
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.strokeStyle = '#151c28'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(rearX, wheelY); ctx.lineTo(x + w * .42, y + 12); ctx.lineTo(frontX, wheelY - wheelie); ctx.stroke();
+    ctx.strokeStyle = '#ff5b22'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(rearX + 2, wheelY - 2); ctx.lineTo(x + w * .48, y + 8); ctx.lineTo(x + w * .7, y + 13 - wheelie * .35); ctx.lineTo(frontX - 2, wheelY - 2 - wheelie); ctx.stroke();
+    ctx.fillStyle = '#202b3b'; ctx.beginPath(); ctx.moveTo(x + w * .28, y + 8); ctx.lineTo(x + w * .49, y - 1); ctx.lineTo(x + w * .72, y + 5); ctx.lineTo(x + w * .63, y + 17); ctx.lineTo(x + w * .35, y + 18); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff6a20'; ctx.beginPath(); ctx.moveTo(x + w * .61, y + 7); ctx.lineTo(x + w * .97, y + 2); ctx.lineTo(x + w * .9, y + 15); ctx.lineTo(x + w * .66, y + 19); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffe08a'; ctx.shadowColor = '#ffae36'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.ellipse(x + w * .96, y + 8, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPlayer() {
+    const skillActive = state === 'running' && elapsedRun < skillActiveUntil && skillTriggered;
+    if (skillActive && selectedCharacter === 'duy') {
+      ctx.save();
+      ctx.strokeStyle = `rgba(74, 160, 92, ${0.45 + Math.sin(worldTime * 14) * 0.2})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(player.x + player.width / 2, player.y + player.height / 2, player.width * .62, player.height * .58, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (skillActive && selectedCharacter === 'tan') {
+      // NÉM CHỔI: vòng hào quang vàng cam quanh Tân (miễn nhiễm va chạm).
+      ctx.save();
+      ctx.strokeStyle = `rgba(255, 176, 46, ${0.5 + Math.sin(worldTime * 14) * 0.2})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(player.x + player.width * 0.42, player.y + player.height / 2, player.width * .6, player.height * .58, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (skillActive && selectedCharacter === 'phat') drawPhatAura();
+    if (selectedCharacter === 'duyquandoi' && (skillActive || squadGuards > 0)) {
+      // CHI VIỆN: khi bật chiêu hiện đủ hai đồng đội; sau chiêu chỉ còn số hộ vệ chưa dùng.
+      const cs = squadSprite;
+      const cw = cs.naturalWidth && cs.naturalHeight ? player.height * (cs.naturalWidth / cs.naturalHeight) : player.width;
+      const frontX = player.x + 48;
+      const backX = player.x - 42;
+      const showFront = skillActive || squadGuards >= 2;
+      const showBack = skillActive || squadGuards >= 1;
+
+      // Hào quang miễn nhiễm chỉ tồn tại trong thời gian Chi viện đang hoạt động.
+      if (skillActive) {
+        const left = Math.min(backX, player.x);
+        const right = Math.max(showFront ? frontX + cw : player.x + player.width, player.x + player.width);
+        const cy = (Math.min(squadY[0], squadY[1], player.y) + Math.max(squadY[0], squadY[1], player.y) + player.height) / 2;
+        ctx.save();
+        const pulse = Math.sin(worldTime * 14) * 0.2;
+        ctx.fillStyle = `rgba(74, 160, 92, ${0.10 + pulse * 0.2})`;
+        ctx.strokeStyle = `rgba(74, 160, 92, ${0.5 + pulse})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse((left + right) / 2, cy, (right - left) / 2 + 10, player.height * 0.62, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+
+      if (cs.complete && cs.naturalWidth > 0) {
+        const companions = [];
+        if (showBack) companions.push([backX, squadY[1], 1.6]);
+        if (showFront) companions.push([frontX, squadY[0], 0]);
+        companions.forEach(([x, y, phaseShift]) => {
+          const grounded = Math.abs(y - player.y) < 1.5 && player.onGround;
+          const bob = grounded ? Math.abs(Math.sin(player.runPhase + phaseShift)) * 2 : 0;
+          const feetGap = clamp((groundY - (y + player.height)) / 120, 0, 1);
+          ctx.fillStyle = `rgba(48, 82, 45, ${0.15 - feetGap * 0.08})`;
+          ctx.beginPath(); ctx.ellipse(x + cw * 0.48, groundY + 2, cw * (0.39 - feetGap * 0.12), 4, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(cs, x, y + bob, cw, player.height);
+        });
+      }
+    }
+    let tienSquadFront = null;
+    const tienTrioOn = selectedCharacter === 'tien' && tienSkinOn('tien');
+    if (tienTrioOn) {
+      // V20.1: ba anh em luôn chạy cùng nhau; skill chỉ bật hào quang miễn nhiễm.
+      const ds = squadSprite;
+      const ts = trongSprite;
+      const dw = ds.naturalWidth && ds.naturalHeight ? player.height * (ds.naturalWidth / ds.naturalHeight) : player.width;
+      const tw = ts.naturalWidth && ts.naturalHeight ? player.height * (ts.naturalWidth / ts.naturalHeight) : player.width;
+      const frontX = player.x + 36;
+      const backX = player.x - 46;
+      const left = Math.min(backX, player.x);
+      const right = Math.max(frontX + dw, player.x + player.width);
+      if (skillActive) {
+        ctx.save();
+        const pulse = Math.sin(worldTime * 14) * 0.2;
+        ctx.fillStyle = `rgba(74, 160, 220, ${0.10 + pulse * 0.2})`;
+        ctx.strokeStyle = `rgba(74, 190, 255, ${0.5 + pulse})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse((left + right) / 2, player.y + player.height / 2, (right - left) / 2 + 14, player.height * 0.68, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+      const feetGap = clamp((groundY - (player.y + player.height)) / 120, 0, 1);
+      [[backX, tw, 1.6], [frontX, dw, 0]].forEach(([x, w, shift]) => {
+        ctx.fillStyle = `rgba(48, 82, 45, ${0.15 - feetGap * 0.08})`;
+        ctx.beginPath(); ctx.ellipse(x + w * 0.48, groundY + 2, w * (0.39 - feetGap * 0.12), 4, 0, 0, Math.PI * 2); ctx.fill();
+      });
+      const bobFor = (shift) => (player.onGround ? Math.abs(Math.sin(player.runPhase + shift)) * 2 : 0);
+      if (ts.complete && ts.naturalWidth > 0) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(ts, backX, player.y + bobFor(1.6), tw, player.height);
+      }
+      tienSquadFront = { sprite: ds, x: frontX, w: dw, bob: bobFor(0) };
+    }
+    if (skillActive && selectedCharacter === 'murat') {
+      // Mu Rát becomes a translucent ghost while a bright duplicate repeatedly dashes ahead.
+      ctx.save();
+      ctx.globalAlpha = 0.78;
+      ctx.shadowColor = '#72eaff'; ctx.shadowBlur = 18;
+      ctx.filter = 'brightness(1.45) sepia(1) saturate(4) hue-rotate(145deg)';
+      if (sprite.complete && sprite.naturalWidth > 0) ctx.drawImage(sprite, muRatCloneX, player.y, player.width, player.height);
+      ctx.restore();
+      ctx.save(); ctx.globalAlpha = 0.38 + Math.sin(worldTime * 12) * 0.08;
+      ctx.shadowColor = '#6be7ff'; ctx.shadowBlur = 15;
+    }
+    if (skillActive && selectedCharacter === 'toduy') {
+      // Katana vung quanh nhân vật trong lúc Ninja đang bật.
+      ctx.save();
+      ctx.strokeStyle = `rgba(190, 120, 255, ${0.35 + Math.sin(worldTime * 12) * 0.15})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(player.x + player.width / 2, player.y + player.height / 2, player.width * .75, player.height * .56, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.translate(player.x + player.width * 0.85, player.y + player.height * 0.45);
+      ctx.rotate(-0.7 + Math.sin(worldTime * 10) * 0.55);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#3a2a1c'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(0, 0); ctx.stroke();
+      ctx.strokeStyle = 'rgba(235,245,255,.96)'; ctx.lineWidth = 3;
+      ctx.shadowColor = '#9fd8ff'; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(50, 0); ctx.stroke();
+      ctx.restore();
+    }
+    if (skillActive && selectedCharacter === 'trieu') {
+      const tier = score >= 5000 ? 2 : score >= 3000 ? 1 : 0;
+      const scale = tier === 2 ? 1.5 : tier === 1 ? 1.25 : 1;
+      const travel = (worldTime % 0.9) / 0.9;
+      const tx = player.x + player.width * 0.8 + travel * 330;
+      const ty = player.y + player.height * 0.27 - Math.sin(travel * Math.PI) * 20;
+      ctx.save();
+      ctx.globalAlpha = 1 - travel * 0.55;
+      ctx.translate(tx, ty);
+      ctx.scale((0.45 + travel * 1.05) * scale, (0.45 + travel * 1.05) * scale);
+      ctx.font = '900 23px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = tier === 2 ? '#ff5a16' : tier === 1 ? '#ff9d00' : '#168cff';
+      ctx.shadowBlur = tier === 2 ? 20 : 12;
+      ctx.strokeStyle = tier === 2 ? '#ffe34d' : tier === 1 ? '#ff7b00' : '#1676d2';
+      ctx.lineWidth = 5; ctx.strokeText('VUA LÝ THUYẾT', 0, 0);
+      ctx.fillStyle = tier === 2 ? '#ff4b16' : tier === 1 ? '#ffe52e' : '#ffffff';
+      ctx.fillText('VUA LÝ THUYẾT', 0, 0);
+      ctx.restore();
+    }
+    if (skillActive && selectedCharacter === 'onghai') drawOngHaiPipe();
+    const shadowW = player.width * (player.onGround ? 0.78 : 0.55);
+    ctx.fillStyle = `rgba(48, 82, 45, ${player.onGround ? .16 : .08})`;
+    ctx.beginPath(); ctx.ellipse(player.x + player.width * .48, groundY + 2, shadowW / 2, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (skillActive && selectedCharacter === 'quang') {
+      if (sprite.complete && sprite.naturalWidth > 0) {
+        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(sprite, player.x, player.y, player.width, player.height);
+      }
+      drawQuangBike();
+    }
+    else if (sprite.complete && sprite.naturalWidth > 0) {
+      // The provided transparent cutout is drawn proportionally, never stretched.
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      const bob = player.onGround && state === 'running' ? Math.abs(Math.sin(player.runPhase)) * 2 : 0;
+      if (skillActive && selectedCharacter === 'murat') ctx.filter = 'brightness(1.35) sepia(1) saturate(3) hue-rotate(145deg)';
+      ctx.drawImage(sprite, player.x, player.y + bob, player.width, player.height);
+    } else {
+      // Graceful fallback while the image is loading.
+      ctx.fillStyle = '#2d794b'; roundedRect(player.x, player.y, player.width, player.height, 10); ctx.fill();
+    }
+    if (skillActive && selectedCharacter === 'murat') { ctx.filter = 'none'; ctx.restore(); }
+    if (tienSquadFront && tienSquadFront.sprite.complete && tienSquadFront.sprite.naturalWidth > 0) {
+      // Duy chạy phía trước Tiến (vẽ sau để đứng trước mặt)
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(tienSquadFront.sprite, tienSquadFront.x, player.y + tienSquadFront.bob, tienSquadFront.w, player.height);
+    }
+  }
+
+  // Chém đứt đôi: lưu ảnh chụp vật cản, vẽ hai nửa tách ra theo đường chém chéo.
+  function ninjaSlice(obstacle) {
+    obstacle.destroyedByNinja = true;
+    const snapshot = { ...obstacle };
+    sliceFX.push({ o: snapshot, side: -1, life: 0.7, max: 0.7 });
+    sliceFX.push({ o: { ...obstacle }, side: 1, life: 0.7, max: 0.7 });
+    slashFX.push({ x: obstacle.x + obstacle.w / 2, y: obstacle.y + obstacle.h / 2, w: obstacle.w, h: obstacle.h, life: 0.3, max: 0.3 });
+    burst(obstacle.x + obstacle.w / 2, obstacle.y + obstacle.h / 2, 10);
+    screenShake = Math.max(screenShake, 0.05);
+    if (lightningCooldown <= 0) {
+      lightningCooldown = 0.12;
+      playTone(vfxRandom(900, 1300), 0.06, 'sawtooth', 0.025);
+    }
+  }
+  function drawSliceHalves() {
+    sliceFX.forEach(f => {
+      const o = f.o;
+      const p = 1 - f.life / f.max;
+      const cx = o.x + o.w / 2;
+      const cy = o.y + o.h / 2;
+      const top = f.side < 0;
+      ctx.save();
+      ctx.globalAlpha = clamp(1 - p * p, 0, 1);
+      ctx.translate(cx + (top ? 26 : -16) * p, cy + (top ? -38 : 26) * p + 120 * p * p * (top ? 0.3 : 0.6));
+      ctx.rotate((top ? 0.5 : -0.4) * p);
+      ctx.translate(-cx, -cy);
+      const pad = 14;
+      const ax = o.x - pad, ay = cy + o.h * 0.45;
+      const bx = o.x + o.w + pad, by = cy - o.h * 0.45;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      if (top) { ctx.lineTo(bx, o.y - 40); ctx.lineTo(ax, o.y - 40); }
+      else { ctx.lineTo(bx, o.y + o.h + 40); ctx.lineTo(ax, o.y + o.h + 40); }
+      ctx.closePath();
+      ctx.clip();
+      drawObstacle(o);
+      ctx.restore();
+    });
+  }
+  function drawSlashes() {
+    slashFX.forEach(f => {
+      const p = 1 - f.life / f.max;
+      const reach = Math.max(f.w, 34) * 0.95 + 18;
+      const sweep = clamp(p * 2.2, 0, 1);
+      const x0 = f.x - reach, y0 = f.y + f.h * 0.6;
+      const x1 = f.x - reach + reach * 2 * sweep, y1 = f.y + f.h * 0.6 - f.h * 1.2 * sweep;
+      ctx.save();
+      ctx.globalAlpha = clamp(1 - Math.max(0, p - 0.35) / 0.65, 0, 1);
+      ctx.lineCap = 'round';
+      ctx.shadowColor = '#8fd8ff'; ctx.shadowBlur = 16;
+      ctx.strokeStyle = 'rgba(150, 215, 255, .55)'; ctx.lineWidth = 9;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(f.x + 4, f.y + 2, x1, y1); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(f.x + 4, f.y + 2, x1, y1); ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawParticles() {
+    particles.forEach(p => {
+      ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+      ctx.fillStyle = p.color || (p.dust ? '#91ad72' : '#75a84e');
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function drawPlatforms() {
+    platforms.forEach(p => {
+      // Wooden deck, metal frame, and cross-braces make the scaffold readable.
+      ctx.fillStyle = '#d8b579';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.fillStyle = '#8b6b43';
+      ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
+      ctx.strokeStyle = '#657f88';
+      ctx.lineWidth = 2;
+      // Extend every support leg all the way to the road so decks never look suspended.
+      const postBottom = Math.max(0, Math.min(height - (p.y + p.h), groundY - (p.y + p.h)));
+      for (const px of [p.x + 5, p.x + p.w - 5]) {
+        ctx.beginPath();
+        ctx.moveTo(px, p.y + p.h);
+        ctx.lineTo(px, p.y + p.h + postBottom);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(p.x + 5, p.y + p.h + postBottom * .55);
+      ctx.lineTo(p.x + p.w - 5, p.y + p.h + postBottom * .9);
+      ctx.moveTo(p.x + p.w - 5, p.y + p.h + postBottom * .55);
+      ctx.lineTo(p.x + 5, p.y + p.h + postBottom * .9);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.55)';
+      ctx.lineWidth = 1;
+      for (let x = p.x + 10; x < p.x + p.w - 3; x += 14) {
+        ctx.beginPath(); ctx.moveTo(x, p.y + 2); ctx.lineTo(x, p.y + p.h - 2); ctx.stroke();
+      }
+    });
+  }
+
+  function drawLightning() {
+    if (!(selectedCharacter === 'trong' || selectedCharacter === 'tien') || state !== 'running') return;
+    ctx.save();
+    // The cloud and bolt stay at each struck obstacle for a short, visible flash.
+    lightningStrikes.forEach(strike => {
+      const alpha = clamp(strike.life / strike.maxLife, 0, 1);
+      ctx.globalAlpha = alpha;
+      const cx = strike.x, cy = strike.y;
+      ctx.fillStyle = '#46576f';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 28, 24, 11, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx - 12, cy - 32, 13, 13, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 9, cy - 34, 15, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff29a';
+      ctx.lineWidth = 4;
+      ctx.shadowColor = '#49cfff';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.moveTo(cx + 2, cy - 25);
+      ctx.lineTo(cx - 6, cy - 10);
+      ctx.lineTo(cx + 3, cy - 10);
+      ctx.lineTo(cx - 8, cy + 8);
+      ctx.stroke();
+    });
+    // A small electric aura around Trọng while the skill is active.
+    const active = elapsedRun < skillActiveUntil && skillTriggered;
+    if (active && selectedCharacter === 'trong') {
+      ctx.globalAlpha = .85;
+      ctx.strokeStyle = '#6edbff';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#49cfff';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.ellipse(player.x + player.width * .52, player.y + player.height * .48,
+        player.width * .66, player.height * .62, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  const skillNames = { duy: 'HÀNH QUÂN', trong: 'SẤM SÉT', murat: 'LƯỚT LƯỚT', toduy: 'NINJA', duyquandoi: 'CHI VIỆN', trieu: 'VUA LÝ THUYẾT', tan: 'NÉM CHỔI', phat: 'TÍCH NỘ', onghai: 'LÀO THỦ TU TIÊN', quang: 'GOD RIDER' };
+  let skillCache = { label: '', pct: -1, active: null, city: null, phatBtn: null, buttonText: '', buttonIcon: '' };
+  const phatBtn = $('phatBtn');
+  // Nút kích hoạt Tích Nộ Quyền: chặn nổi bọt để bấm không bị tính là cú nhảy.
+  ['pointerdown', 'touchstart', 'mousedown', 'click'].forEach((type) => {
+    phatBtn.addEventListener(type, (event) => {
+      event.stopPropagation();
+      if (type === 'pointerdown' || type === 'touchstart') {
+        event.preventDefault();
+        if (selectedCharacter === 'quang') activateQuangSkill(); else phatActivate(false);
+      }
+    }, { passive: false });
+  });
+  function updateSkillHud() {
+    const name = selectedCharacter === 'tien' ? charSkillName('tien') : (skillNames[selectedCharacter] || 'KỸ NĂNG');
+    let label = name;
+    let pct = 0;
+    let active = false;
+    if (selectedCharacter === 'quang') {
+      if (quangActiveNow()) {
+        const remaining = Math.max(0, skillActiveUntil - elapsedRun);
+        active = true; pct = remaining / skillDuration() * 100;
+        label = `GOD RIDER · ${remaining.toFixed(1)}s`;
+      } else if (state === 'running') {
+        const rc = Math.max(0, nextSkillAt - elapsedRun);
+        pct = (1 - rc / Math.max(1, skillInterval())) * 100;
+        label = rc <= 0 ? 'GOD RIDER · SẴN SÀNG' : `GOD RIDER · HỒI ${Math.ceil(rc)}s`;
+      } else label = `GOD RIDER · ${skillInterval()}s`;
+    } else if (selectedCharacter === 'phat') {
+      // Phát: thanh Nộ (nạp theo hành động, không chạy theo thời gian); khi bật chiêu thì đếm ngược thời gian duy trì.
+      const need = phatNeed();
+      if (state === 'running' && phatActiveNow()) {
+        const remaining = Math.max(0, skillActiveUntil - elapsedRun);
+        active = true;
+        pct = remaining / skillDuration() * 100;
+        label = `${PHAT_EFFECT_NAME[phatEffect] || name} · ${remaining.toFixed(1)}s`;
+      } else if (state === 'running') {
+        pct = phatRage / need * 100;
+        label = phatRage >= need ? `${name} · ĐỦ NỘ!` : `${name} · ${Math.floor(phatRage)}/${need}`;
+      } else label = `${name} · ${need} NỘ`;
+    } else if (selectedCharacter === 'tien' && !tienSkinOn()) {
+      // Nhảy kép: không hồi chiêu — đầy 100% khi còn lượt nhảy trên không, 0% sau khi đã dùng đến lúc tiếp đất.
+      const ready = state !== 'running' || player.airJumpsLeft > 0;
+      label = `${name} · ${ready ? 'SẴN SÀNG' : 'ĐÃ DÙNG'}`;
+      pct = ready ? 100 : 0;
+    } else if (state === 'running') {
+      const remaining = Math.max(0, skillActiveUntil - elapsedRun);
+      if (skillTriggered && remaining > 0) {
+        active = true;
+        pct = remaining / skillDuration() * 100;
+        label = `${name} · ${remaining.toFixed(1)}s`;
+      } else {
+        const total = Math.max(1, skillInterval());
+        const rc = Math.max(0, nextSkillAt - elapsedRun);
+        pct = (1 - rc / total) * 100;
+        label = `${name} · HỒI ${Math.ceil(rc)}s`;
+      }
+    }
+    pct = Math.round(clamp(pct, 0, 100));
+    if (label !== skillCache.label) { skillCache.label = label; skillLabel.textContent = label; }
+    if (pct !== skillCache.pct) { skillCache.pct = pct; skillFill.style.width = `${pct}%`; skillBar.setAttribute('aria-valuenow', String(pct)); }
+    if (active !== skillCache.active) { skillCache.active = active; skillBar.classList.toggle('is-active', active); }
+    const showPhatBtn = phatReady() || (selectedCharacter === 'quang' && state === 'running' && !quangActiveNow() && elapsedRun >= nextSkillAt);
+    if (showPhatBtn !== skillCache.phatBtn) { skillCache.phatBtn = showPhatBtn; phatBtn.hidden = !showPhatBtn; }
+    const buttonText = selectedCharacter === 'quang' ? 'GOD RIDER' : 'KÍCH HOẠT NỘ';
+    const buttonIcon = selectedCharacter === 'quang' ? '🏍️' : '⚡';
+    if (skillCache.buttonText !== buttonText) { skillCache.buttonText = buttonText; phatBtn.querySelector('.phat-btn-txt').textContent = buttonText; }
+    if (skillCache.buttonIcon !== buttonIcon) { skillCache.buttonIcon = buttonIcon; phatBtn.querySelector('.phat-btn-ico').textContent = buttonIcon; }
+    // [GĐ1-sửa] tách 'night' khỏi 'city'; [GĐ2] thêm 'village'
+    const mapKey = cityMode ? (cityNight ? 'night' : 'city') : (villageMode ? 'village' : (beachMode ? 'beach' : 'desert'));
+    if (mapKey !== skillCache.city) {
+      skillCache.city = mapKey;
+      skillBar.classList.toggle('is-city', mapKey === 'city');
+      skillBar.classList.toggle('is-night', mapKey === 'night');
+      skillBar.classList.toggle('is-beach', mapKey === 'beach');
+      skillBar.classList.toggle('is-village', mapKey === 'village');
+    }
+  }
+
+  function drawKnockedObstacles() {
+    knockedObstacles.forEach(o => {
+      ctx.save(); ctx.globalAlpha = clamp(o.life / 0.45, 0, 1);
+      ctx.translate(o.x + o.w / 2, o.y + o.h / 2); ctx.rotate(o.angle);
+      ctx.translate(-o.w / 2, -o.h / 2);
+      drawObstacle({ ...o, x: 0, y: 0, knocked: true });
+      ctx.restore();
+    });
+  }
+  function render() {
+    ctx.clearRect(0, 0, width, height);
+    ctx.save();
+    if (screenShake > 0) ctx.translate(vfxRandom(-3, 3) * screenShake * 5, vfxRandom(-2, 2) * screenShake * 5);
+    drawBackground();
+    platforms.forEach(p => { /* platforms are drawn as part of the city layer below */ });
+    drawPlatforms();
+    if (villageMode) drawVillageDecor();   // [GĐ2] cây dừa trang trí (sau nền, trước vật cản)
+    if (beachMode || villageMode) drawWaterPits();
+    rainbowItems.forEach(drawRainbowSoNui);   // [L4]
+    obstacles.forEach(drawObstacle);
+    drawKnockedObstacles();
+    if (bossMode) drawBossBack();
+    drawSliceHalves();
+    const blink = bossMode && state === 'running' && boss.invuln > 0 && Math.floor(boss.invuln * 12) % 2 === 0;
+    if (blink) ctx.globalAlpha = 0.35;
+    const rainbowOn = rainbowActive();   // [L4] nhân vật đổi màu cầu vồng
+    if (rainbowOn) ctx.filter = `hue-rotate(${(worldTime * 360) % 360}deg) saturate(2.5)`;
+    drawPlayer();
+    ctx.filter = 'none';
+    if (rainbowOn) drawRainbowAura();
+    if (blink) ctx.globalAlpha = 1;
+    drawSlashes();
+    drawBrooms();
+    drawSmokeRings();
+    drawPhatFx();
+    drawLightning();
+    if (bossMode) drawBossFront();
+    if (villageMode) drawWindStreaks();   // [GĐ3-B2]
+    drawParticles();
+    window.Multiplayer?.onRender(ctx);
+    ctx.restore();
+    updateSkillHud();
+  }
+
+  function frame(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const dt = Math.min((timestamp - lastTime) / 1000, 0.035);
+    lastTime = timestamp;
+    try {
+      if (gameScreen.classList.contains('is-active')) {
+        update(dt);
+        render();
+      }
+    } catch (error) {
+      // Keep the animation loop alive if a non-essential HUD element fails.
+      console.error('Lỗi cập nhật khung hình game:', error);
+    } finally {
+      requestAnimationFrame(frame);
+    }
+  }
+
+  stage.addEventListener('pointerdown', (event) => {
+    if (state !== 'running') return;
+    event.preventDefault();
+    jump();
+  }, { passive: false });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'Escape') {
+      if (activeModal) { event.preventDefault(); closeModal(); }
+      return;
+    }
+    if (activeModal) return;
+    if (state === 'running') {
+      if (['Space', 'ArrowUp', 'KeyW'].includes(event.code)) { event.preventDefault(); jump(event.repeat); }
+      else if (['KeyE', 'KeyS'].includes(event.code) && (selectedCharacter === 'phat' || selectedCharacter === 'quang')) { event.preventDefault(); if (!event.repeat) { if (selectedCharacter === 'quang') activateQuangSkill(); else phatActivate(false); } }
+      return;
+    }
+    if (event.target && event.target.tagName === 'BUTTON') return; // nút đang focus tự xử lý Space/Enter
+    if (['Space', 'Enter', 'ArrowUp', 'KeyW', 'KeyR'].includes(event.code)) {
+      event.preventDefault();
+      if (lobbyScreen.classList.contains('is-active')) startGame();
+      else if (state === 'over' && performance.now() - overAt > 700) retryRun();
+    }
+  });
+
+  soundButton.addEventListener('click', () => {
+    const nextMode = audioMode === 'all' ? 'music-off' : (audioMode === 'music-off' ? 'mute' : 'all');
+    setAudioMode(nextMode);
+    if (sfxOn) playTone(620, 0.08, 'sine', 0.025);
+  });
+
+  // Thanh địa chỉ trình duyệt di động trượt lên/xuống: cập nhật chiều cao thật và vẽ lại canvas ngay.
+  function syncViewport() {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    if (h > 0) document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
+    fitCanvas();
+  }
+  window.addEventListener('resize', syncViewport);
+  window.addEventListener('orientationchange', () => setTimeout(syncViewport, 250));
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewport);
+    window.visualViewport.addEventListener('scroll', syncViewport);
+  }
+  syncViewport();
+  if ('ResizeObserver' in window) new ResizeObserver(fitCanvas).observe(stage);
+
+  // Khởi tạo
+  muRatShown = isMuRatUnlocked();
+  try {
+    const savedChar = localStorage.getItem('duyMapChayDiChar');
+    if (savedChar && characters[savedChar] && isCharUnlocked(savedChar) && savedChar !== 'duy') loadCharacter(savedChar);
+  } catch (_) { /* storage may be disabled */ }
+  ensureQuests();
+  ensureChallenge();
+  updateNewsDot();
+  updateLobby();
+  renderCharacterCards();
+  updateHud();
+  updateSoundButton();
+  setInterval(() => {
+    if (ensureQuests()) { updateQuestDot(); if (activeModal === questModal && questTab === 'daily') renderQuests(); }
+    if (ensureChallenge()) { updateChallengeButton(); if (activeModal === questModal && questTab === 'challenge') renderChallenge(); }
+  }, 30000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (musicAudio && !musicAudio.paused) {
+        musicAudio.pause();
+        musicPausedByVisibility = true;
+      }
+      if (audioContext && audioContext.state === 'running') audioContext.suspend().catch(() => {});
+      return;
+    }
+    if (ensureQuests()) { updateQuestDot(); if (activeModal === questModal && questTab === 'daily') renderQuests(); }
+    if (ensureChallenge()) { updateChallengeButton(); if (activeModal === questModal && questTab === 'challenge') renderChallenge(); }
+    // Không tự phát khi quay lại tab: chờ cú chạm/phím tiếp theo của người chơi.
+  });
+  requestAnimationFrame(frame);
+
+  // ---------- Cầu nối cho các module độc lập (league.js, multiplayer.js) ----------
+  function addReward(crystalAmount = 0, coinAmount = 0) {
+    crystals += Math.max(0, Math.floor(crystalAmount));
+    coinBalance += Math.max(0, Math.floor(coinAmount));
+    saveEconomy();
+    saveMeta();
+    updateLobby();
+  }
+  // V22: Key Mini-game từ sự kiện — đã đủ 3/3 Key thì mỗi Key dư quy đổi thành 💎 15.
+  function addKey(amount = 1) {
+    let added = 0;
+    let converted = 0;
+    for (let i = 0; i < Math.max(0, Math.floor(amount)); i++) {
+      if (miniKeys < 3) { miniKeys++; added++; }
+      else { crystals += 15; converted++; }
+    }
+    saveMeta();
+    updateLobby();
+    return { added, converted, crystalGained: converted * 15 };
+  }
+  window.GameBridge = {
+    // Firebase + danh tính
+    get lbDb() { return lbDb; },
+    get lbUid() { return lbUid; },
+    lbPlayerName,
+    // V24.1: danh sách NPC dùng làm Bot ghép trận (Racing / Solo 1v1)
+    get lbNpcs() { return LB_NPCS.map((n) => ({ id: n.id, name: n.name, char: n.character === 'Mu Rát' ? 'murat' : (String(n.character).indexOf('Trọng') === 0 ? 'trong' : 'duy') })); },
+    get tienOriginal() { return selectedCharacter === 'tien' && !tienSkinOn('tien'); },
+    // Nhân vật & trạng thái chạy
+    get selectedCharacter() { return selectedCharacter; },
+    charName,
+    characters,
+    get best() { return best; },
+    get score() { return score; },
+    get state() { return state; },
+    get skillActive() { return state === 'running' && elapsedRun < skillActiveUntil && skillTriggered; },
+    player,
+    get groundY() { return groundY; },
+    get width() { return width; },
+    // Kinh tế
+    get crystals() { return crystals; },
+    get coinBalance() { return coinBalance; },
+    get miniKeys() { return miniKeys; },
+    addReward,
+    addKey,
+    spendCrystals,
+    saveEconomy,
+    saveMeta,
+    // Điều khiển game & UI
+    updateLobby,
+    startGame: (mode) => startGame(mode),
+    endGame: () => endGame(),
+    toLobby: (openUpgrades) => toLobby(openUpgrades),
+    openModal,
+    closeModal,
+    showToast,
+    formatScore,
+    playTone,
+    playUiSound,
+    // RACING (racing.js)
+    get racingMode() { return racingMode; },
+    setRacingMode: (on) => { racingMode = !!on; },
+    racingRespawn: () => racingRespawn(),
+    racingSetMap: (key) => racingSetMap(key),
+    get currentMap() { return currentMapKey(); }
+  };
+})();
