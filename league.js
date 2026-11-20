@@ -33,7 +33,8 @@
   const GIFT_CODES = {
     triananh7: { crystal: 75, coin: 700 },
     tannoprime: { crystal: 35, coin: 600 },
-     quangvaonghai: {crystal: 50, coin: 700}
+     quangvaonghai: {crystal: 50, coin: 700},
+     mung2011nghi: {crystal: 75, coin: 1000}
   };
   const GIFT_FETCH_TIMEOUT = 6000; // chờ tối đa 6 giây khi hỏi Firebase
 
