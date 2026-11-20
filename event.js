@@ -216,7 +216,7 @@
   const EDU = {
     KEY: 'duyMapChayDiEvent2011_state_v1',
     // Thời điểm bắt đầu: chuỗi ISO / ms. Đặt null → tự bắt đầu khi thiết bị này mở game lần đầu sau bản cập nhật.
-    START_AT: '2026-11-20T00:00:00+08:00',
+    START_AT: '2026-11-20T00:00:00+07:00',
     DAYS: 4,
     DAY_MS: 24 * 60 * 60 * 1000,
     MIN_BEST: 1000,                          // kỷ lục tối thiểu để mở khóa sự kiện
