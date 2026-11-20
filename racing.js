@@ -487,7 +487,7 @@
     } else {
       readyBtn.disabled = false;
       readyBtn.textContent = mine && mine.ready ? 'HỦY SẴN SÀNG' : `SẴN SÀNG (cược ${BET} 💎)`;
-      if (botSearchUntil > 0 && n < 2) {
+      if (botSearchUntil > 0 && n < MIN_PLAYERS) {
         const left = Math.max(0, Math.ceil((botSearchUntil - Date.now()) / 1000));
         roomInfoEl.textContent = `🔎 Đang tìm đối thủ... ${left}s nữa vẫn chưa có ai sẽ tự ghép Bot NPC để vào trận ngay.`;
       } else {
@@ -1219,16 +1219,16 @@
     botSearchTimer = 0;
     const ref = roomRef;
     if (phase !== 'room' || !room || !ref || botMatch) { clearBotSearch(); return; }
-    if (Object.keys(playersOf(room)).some((u) => u !== me())) { clearBotSearch(); return; }   // đã có người thật vào phòng → chơi bình thường
-    clearBotSearch();
+    if (Object.keys(playersOf(room)).length >= MIN_PLAYERS)
     let removed = false;
     botRemoving = true;
     try {
       // Gỡ phòng chờ chỉ khi vẫn còn mỗi mình (transaction: nếu có người vừa vào đúng lúc thì hủy việc ghép Bot)
       const res = await ref.transaction((cur) => {
         if (!cur) return cur;
-        if (Object.keys(cur.players || {}).some((u) => u !== me())) return undefined;
-        return null;
+        if (Object.keys(cur.players || {}).length >= MIN_PLAYERS) return undefined;
+                     if (cur.players) delete cur.players[me()];
+      return cur.players && Object.keys(cur.players).length ? cur : null;
       }, undefined, false);
       removed = !!res.committed;
     } catch (err) {
