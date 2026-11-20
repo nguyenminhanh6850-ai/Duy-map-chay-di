@@ -2282,12 +2282,12 @@
   function addObstacle() {
     // [L4] Sò Nui 7 Màu: 5% mỗi lần sinh vật cản (không Boss/Racing). Dùng gameRand để đồng bộ Solo 1v1.
     const rainbowRoll = window.gameRand(), rainbowDur = window.gameRand();
-    if (!bossMode && !racingMode && rainbowRoll < 0.05) {
+    if (!bossMode && !racingMode && rainbowRoll < 0.02) {
       const sx = width + 28, sw = 28;   // [BAG] bịch đứng 28x38
       // Cách xa vật cản khác ít nhất 100px
       const clear = ![...obstacles, ...waterPits, ...rainbowItems].some(o => o.x < sx + sw + 100 && o.x + o.w > sx - 100);
       if (clear) {
-        rainbowItems.push({ x: sx, y: groundY - 46 - 19, w: sw, h: 38, dur: 10 + rainbowDur * 10, phase: vfxRandom(0, 6.28) });
+        rainbowItems.push({ x: sx, y: groundY - 46 - 19, w: sw, h: 38, dur: 5 + rainbowDur * 15, phase: vfxRandom(0, 6.28) });
         return;
       }
     }
