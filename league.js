@@ -370,7 +370,7 @@
     let crystalAmount = tier.crystal;
     let charNote = '';
     if (tier.char === 'duongtao' && GB.hasCharacter && GB.unlockCharacter) {
-      if (GB.hasCharacter('duongtao')) { crystalAmount += 50; charNote = ' · Đã có Dương Tào → hoàn thêm +100 💎'; }
+      if (GB.hasCharacter('duongtao')) { crystalAmount += 100; charNote = ' · Đã có Dương Tào → hoàn thêm +100 💎'; }
       else if (GB.unlockCharacter('duongtao')) charNote = ' · 😏 MỞ KHÓA NHÂN VẬT DƯƠNG TÀO!';
     }
     GB.addReward(crystalAmount, tier.coin);
