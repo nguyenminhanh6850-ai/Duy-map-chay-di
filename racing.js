@@ -26,9 +26,9 @@
   if (!GB) { console.warn('racing.js: không thấy window.GameBridge (game.js chưa nạp?)'); return; }
 
   // ---------- Cấu hình ----------
-  const TARGET_DISTANCE = 25000;          // vạch đích
-  const MAP_STEP = 3000;                  // cứ mỗi 3.000m đổi map (3k, 6k, ... 24k)
-  const FINAL_LAP_AT = 22000;             // còn 3.000m cuối → cảnh báo nước rút
+  const TARGET_DISTANCE = 10000;          // vạch đích
+  const MAP_STEP = 2500;                  // cứ mỗi 3.000m đổi map (3k, 6k, ... 24k)
+  const FINAL_LAP_AT = 8000;             // còn 3.000m cuối → cảnh báo nước rút
   const BET = 5;                          // cược 5 Crystal / người
   const MIN_PLAYERS = 3;
   const MAX_PLAYERS = 5;
@@ -39,7 +39,7 @@
   const BOT_COUNT = 2;                    // số Bot trong trận giả lập (cùng bạn = 3 người, đúng mức tối thiểu của Racing)
   const BOT_SPEED_MIN = 36;               // m/s — tốc độ chạy trung bình của Bot
   const BOT_SPEED_MAX = 42;
-  const BOT_FALL_PER_SEC = 0.0015;        // xác suất vấp ngã mỗi giây (≈ 1 lần / 11 phút) → bị reset về 0m như người thật
+  const BOT_FALL_PER_SEC = 0.0045;        // xác suất vấp ngã mỗi giây (≈ 1 lần / 11 phút) → bị reset về 0m như người thật
   const BOT_FALL_GRACE = 8;               // giây "an toàn" sau khi Bot vừa hồi sinh
   const RACE_COMPLETE_MIN_MS = 60000;     // phải ở trong trận ≥ 60s mới tính "hoàn thành Racing" cho sự kiện 20/11
   const MAPS = ['desert', 'city', 'beach', 'sunset'];
@@ -365,7 +365,7 @@
     hud.hidden = true;
     mapBox = el('div', 'rc-map');
     const mh = el('div', 'rc-map-head');
-    mapHead1 = el('span', '', '🏁 0m / 25.000m');
+    mapHead1 = el('span', '', '🏁 0m / 10.000m');
     mapHead2 = el('span', '', '');
     mh.appendChild(mapHead1);
     mh.appendChild(mapHead2);
@@ -389,7 +389,7 @@
     feedEl = el('div', 'rc-feed');
     hud.appendChild(feedEl);
     hud.appendChild(el('div', 'rc-vignette'));
-    bannerEl = el('div', 'rc-banner', '🚨 NƯỚC RÚT! CÒN 3.000m CUỐI!');
+    bannerEl = el('div', 'rc-banner', '🚨 NƯỚC RÚT! CÒN 2.000m CUỐI!');
     hud.appendChild(bannerEl);
     quitBtn = el('button', 'rc-quit', '🚪 THOÁT');
     quitBtn.type = 'button';
