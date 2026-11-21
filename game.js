@@ -573,7 +573,8 @@
     const maxLv = Math.max(...roster.map(k => upgrades[k]));
     const atLv4 = roster.filter(k => upgrades[k] >= 4).length;
     const ownedGachaCount = ['toduy', 'duyquandoi', 'trieu', 'tan', 'phat', 'onghai'].filter(k => owned[k]).length;
-    const visitedCount = achv.visitedMaps.length;
+    const allMaps = ['desert', 'city', 'night', 'beach', 'sunset', 'village'];
+const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
     return [
       { id: 'a1', icon: '🏃', title: 'Khởi động', desc: 'Đạt 500 điểm trong một ván', cur: best, goal: 500, reward: 5 },
       { id: 'a2', icon: '🏜️', title: 'Nghìn dặm', desc: 'Đạt 1.000 điểm trong một ván', cur: best, goal: 1000, reward: 10 },
