@@ -182,7 +182,7 @@
       row.appendChild(el('span', '', tier.label));
       const rewardCell = el('span', 'px', `💎 ${tier.crystal} · 🪙 ${fmt(tier.coin)}`);
       if (tier.char === 'duongtao') {
-        const tag = el('small', '', '+ 😏 Dương Tào (hoàn 💎 50 nếu đã có)');
+        const tag = el('small', '', '+ 😏 Dương Tào (hoàn 💎 100 nếu đã có)');
         tag.style.display = 'block';
         rewardCell.appendChild(tag);
       }
