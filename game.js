@@ -1148,6 +1148,10 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
   playButton.addEventListener('click', () => startGame());
   openCharactersBtn.addEventListener('click', openCharacterModal);
   openHelpBtn.addEventListener('click', openHelpModal);
+    function retryRun() {
+    if (bossMode) { toLobby(false); openMiniModal(); }
+    else startGame();
+    }
   retryButton.addEventListener('click', () => retryRun());
   backLobbyButton.addEventListener('click', () => toLobby(!bossMode));
 
