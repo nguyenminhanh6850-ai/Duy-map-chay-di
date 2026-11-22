@@ -2099,9 +2099,6 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
     waterPits.forEach(pit => {
       if (!pit.absorbed && !pit.filled && pit.x < reach && pit.x + pit.w > player.x - 4) pit.filled = true;
     });
-       [70, 175, 285].forEach((dx, i) => {
-      lightningStrikes.push({ x: player.x + player.width + dx, y: groundY - 14, life: 0.65 + i * 0.05, maxLife: 0.65 + i * 0.05 });
-    });
     if (bossMode) window.GameBridge?.boss?.onRiderStrike?.(RIDER_BOSS_DAMAGE);
     lightningFlash = 0.4;
     spawnRiderBolts();
