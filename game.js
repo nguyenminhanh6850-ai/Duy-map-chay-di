@@ -2008,6 +2008,7 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
     waterPits.forEach(pit => {
       if (!pit.absorbed && !pit.filled && pit.x < reach && pit.x + pit.w > player.x - 4) pit.filled = true;
     });
+        if (!lightningStrikes.length) lightningStrikes.push({ x: player.x + player.width + 115, y: groundY - 14, life: 0.65, maxLife: 0.65 });
     if (bossMode) window.GameBridge.boss.onRiderStrike(RIDER_BOSS_DAMAGE);
     lightningFlash = 0.4;
     burst(player.x + player.width * 0.5, player.y + player.height * 0.4, 30, false, '#ffe66b');
@@ -2070,12 +2071,11 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
     showToast('BỎ NGỰA CHẠY LẤY NGƯỜI! Trọng chạy bộ, thanh Gọi Chiến Mã giữ nguyên tiến độ.');
     playTone(300, 0.18, 'triangle', 0.045);
   }
-  function updateRider(dt) {
+    function updateRider(dt) {
     if (!isRider()) return;
-    const landed = player.onGround && !riderPrevGround;
-    riderPrevGround = player.onGround;
     if (riderSkillActiveNow()) {
-      if (landed && riderMounted) riderShockwave();
+      const target = obstacles.find(o => o !== groundPlatform && !o.destroyedByLightning && o.x > player.x + 10 && o.x < player.x + 320);
+      if (target) riderLightningStrike(target);
       return;
     }
     if (riderMounted) {
@@ -4282,7 +4282,11 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
 
       // Nhảy kép tự hồi ngay khi chân chạm đất, nóc xe buýt hoặc giàn giáo.
       if (player.onGround || groundPlatform) { player.airJumpsLeft = airJumpsMax(); player.floaty = false; }
-
+            if (isRider()) {
+        const onSurf = !!(player.onGround || groundPlatform);
+        if (onSurf && !riderPrevGround && riderMounted && riderSkillActiveNow()) riderShockwave();
+        riderPrevGround = onSurf;
+            }
       // Nhiệm vụ: đếm mỗi lần tông vào một chiếc xe buýt (đáp lên nóc xe không tính).
       obstacles.forEach(obstacle => {
         if (obstacle.type !== 'bus' || obstacle.hitCounted || groundPlatform === obstacle || onghaiFlying) return;
