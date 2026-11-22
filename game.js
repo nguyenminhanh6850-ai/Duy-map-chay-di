@@ -2640,7 +2640,7 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
       // Cách xa vật cản khác ít nhất 100px
       const clear = ![...obstacles, ...waterPits, ...rainbowItems].some(o => o.x < sx + sw + 100 && o.x + o.w > sx - 100);
       if (clear) {
-        rainbowItems.push({ x: sx, y: groundY - 46 - 19, w: sw, h: 38, dur: 10 + rainbowDur * 10, phase: vfxRandom(0, 6.28) });
+        rainbowItems.push({ x: sx, y: groundY - 46 - 19, w: sw, h: 38, dur: 5 + rainbowDur * 15, phase: vfxRandom(0, 6.28) });
         return;
       }
     }
