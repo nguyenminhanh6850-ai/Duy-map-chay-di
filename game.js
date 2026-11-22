@@ -1605,7 +1605,7 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
   const SHOP_LINES = {
     greet: ['Mua gì thì mua, đừng làm mất thời gian của ông Duy!', 'Vào đây! Hàng ông Duy toàn loại xịn.', 'Có tiền thì cứ mua, hết hàng là mai quay lại.'],
     buy: ['Hàng đẹp đấy, chạy cho nhanh nhé!', 'Cảm ơn quý khách. Chan pa gật đầu.', 'Giao dịch xong. Đi chơi đi!'],
-    poor: ['Thiếu Coin rồi, đi chạy thêm đi!', 'Ví mỏng quá… chạy kiếm thêm Coin nhé','Đéo đủ coin.'],
+    poor: ['Thiếu Coin rồi, đi chạy thêm đi!', 'Ví mỏng quá… chạy kiếm thêm Coin nhé', 'Đéo đủ coin!'],
     soldout: ['Hôm nay hết hàng món này, mai quay lại nhé!'],
     soon: ['Hàng này chưa về. Đợi ông Duy nhập đã!']
   };
@@ -2008,7 +2008,9 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
     waterPits.forEach(pit => {
       if (!pit.absorbed && !pit.filled && pit.x < reach && pit.x + pit.w > player.x - 4) pit.filled = true;
     });
-        if (!lightningStrikes.length) lightningStrikes.push({ x: player.x + player.width + 115, y: groundY - 14, life: 0.65, maxLife: 0.65 });
+       [70, 175, 285].forEach((dx, i) => {
+      lightningStrikes.push({ x: player.x + player.width + dx, y: groundY - 14, life: 0.65 + i * 0.05, maxLife: 0.65 + i * 0.05 });
+    });
     if (bossMode) window.GameBridge.boss.onRiderStrike(RIDER_BOSS_DAMAGE);
     lightningFlash = 0.4;
     burst(player.x + player.width * 0.5, player.y + player.height * 0.4, 30, false, '#ffe66b');
@@ -2026,6 +2028,7 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
       riderLightningStrike(o);
       count++;
     });
+        lightningStrikes.push({ x: player.x + player.width + 135, y: groundY - 14, life: 0.55, maxLife: 0.55 });
     burst(player.x + player.width * 0.5, groundY, 12, true, '#ffe66b');
     playTone(420, 0.1, 'triangle', 0.03);
     if (count > 0 && (upgrades.trongriding || 1) >= 3) {
@@ -2074,8 +2077,6 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
     function updateRider(dt) {
     if (!isRider()) return;
     if (riderSkillActiveNow()) {
-      const target = obstacles.find(o => o !== groundPlatform && !o.destroyedByLightning && o.x > player.x + 10 && o.x < player.x + 320);
-      if (target) riderLightningStrike(target);
       return;
     }
     if (riderMounted) {
