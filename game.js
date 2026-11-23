@@ -92,10 +92,10 @@
     tan: { name: 'Tân', src: 'assets/tan.png' },
     phat: { name: 'Phát', src: 'assets/phat.png' },
     onghai: { name: 'Ông Hai', src: 'assets/ong-hai.png' },
+    buibang: { name: 'Bùi Bằng', src: 'assets/bui-bang.png' },   // [BÙI BẰNG]
     tien: { name: 'Tiến', src: 'assets/tien.png' },
     quang: { name: 'Quang', src: 'assets/quang.png' },
     duongtao: { name: 'Dương Tào', src: 'assets/duong-tao.png' },
-    buibang: { name: 'Bùi Bằng', src: 'assets/bui-bang.png' },   // [BÙI BẰNG]
     trongriding: { name: 'Trọng Riding', src: 'assets/trong-riding.png' }
   };
   let selectedCharacter = 'duy';
