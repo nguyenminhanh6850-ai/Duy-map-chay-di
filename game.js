@@ -116,7 +116,7 @@
     if (key === 'onghai') return !!owned.onghai;
     if (key === 'tien') return !!owned.tien;
     if (key === 'quang') return !!owned.quang;
-    if (key === 'duongtao') return true;
+    if (key === 'duongtao') return !!owned.duongtao;
     if (key === 'buibang') return !!owned.buibang;   // [BÙI BẰNG] mở khóa từ Gacha
     if (key === 'trongriding') return !!owned.trongriding;
     return true;
