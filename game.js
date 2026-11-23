@@ -1510,7 +1510,7 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
       inventory[key]++;
       text = `${itemIconText(key)} ${ITEMS[key].name} +1`;
     } else if (roll < 0.95) {
-      // [BÙI BẰNG] nhóm nhân vật 15% (0.80 → 0.95) chia đều cho 7 nhân vật (~2,14% mỗi người)
+      // nhóm nhân vật 15% (0.80 → 0.95) chia đều cho 7 nhân vật (~2,14% mỗi người)
       rare = true;
       const pool = [
         ['toduy', '🥷', 'Tô Duy'], ['duyquandoi', '🪖', 'Duy Quân đội'], ['trieu', '👑', 'Triều'],
@@ -3795,8 +3795,13 @@ const visitedCount = allMaps.filter(m => achv.visitedMaps.includes(m)).length;
       bbSafeUntil = elapsedRun + 0.8;   // bất tử ngắn lúc tiếp đất
     }
   }
+
+          let bbLastToggle = 0;
   function bbToggle() {
     if (state !== 'running' || selectedCharacter !== 'buibang') return false;
+    if (performance.now() - bbLastToggle < 250) return false;
+    bbLastToggle = performance.now();
+    
     if (bbDriving) { bbExit(false); return true; }
     if (bbOverloaded()) { phatPopup('Quá tải! Đang bị phạt...', '#ff9a36'); return false; }
     if (bbPin <= 0) { phatPopup('Hết điện', '#ff9a36'); return false; }
