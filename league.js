@@ -38,7 +38,8 @@
      trongsetv2: {crystal: 50, coin: 500},
      mungthaybang: {crystal: 130, coin: 100},
      toduycomeback: {crystal: 50, coin: 1000},
-     goatchinguyen: {crystal: 35, coin: 1000}
+     goatchinguyen: {crystal: 35, coin: 1000},
+     duymapchaydi: {crystal: 130, coin:1000}
   };
   const GIFT_FETCH_TIMEOUT = 6000; // chờ tối đa 6 giây khi hỏi Firebase
 
